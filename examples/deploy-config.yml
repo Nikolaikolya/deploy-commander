@@ -1,0 +1,77 @@
+deployments:
+  - name: frontend-app
+    description: "Деплой фронтенд приложения"
+    working_dir: "/var/www/frontend"
+    environment:
+      - "NODE_ENV=production"
+      - "PORT=3000"
+    events:
+      - name: pre-deploy
+        description: "Подготовка к деплою"
+        commands:
+          - command: "echo 'Начало деплоя frontend-app'"
+            description: "Сообщение о начале деплоя"
+            timeout: 5
+            ignore_errors: true
+          - command: "git fetch"
+            description: "Получение изменений из репозитория"
+            timeout: 30
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "git pull origin main"
+            description: "Получение последних изменений"
+            timeout: 60
+          - command: "npm ci"
+            description: "Установка зависимостей"
+            timeout: 300
+          - command: "npm run build"
+            description: "Сборка проекта"
+            timeout: 300
+        fail_fast: true
+
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "pm2 restart frontend"
+            description: "Перезапуск приложения в PM2"
+            timeout: 30
+          - command: "echo 'Деплой frontend-app завершен'"
+            description: "Сообщение о завершении деплоя"
+            timeout: 5
+            ignore_errors: true
+        fail_fast: false
+
+  - name: backend-api
+    description: "Деплой бэкенд API"
+    working_dir: "/var/www/backend"
+    environment:
+      - "NODE_ENV=production"
+      - "DB_HOST=localhost"
+    events:
+      - name: backup
+        description: "Резервное копирование перед деплоем"
+        commands:
+          - command: "pg_dump -U postgres -d myapp > /backups/myapp_$(date +%Y%m%d_%H%M%S).sql"
+            description: "Резервное копирование базы данных"
+            timeout: 120
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "git pull origin main"
+            description: "Получение последних изменений"
+            timeout: 60
+          - command: "npm ci"
+            description: "Установка зависимостей"
+            timeout: 300
+          - command: "npm run migrations"
+            description: "Выполнение миграций базы данных"
+            timeout: 120
+          - command: "pm2 restart backend-api"
+            description: "Перезапуск API сервера"
+            timeout: 30
+        fail_fast: true
