@@ -59,8 +59,7 @@ async fn main() {
 
     // Проверка наличия необходимых команд
     if let Err(e) = commands::check_required_commands().await {
-        error!("Ошибка проверки команд: {}", e);
-        exit(1);
+        warn!("Некоторые команды недоступны: {}", e);
     }
 
     // Загрузка конфигурации

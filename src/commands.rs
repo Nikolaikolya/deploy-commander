@@ -69,7 +69,11 @@ pub async fn validate_command(command: &str) -> Result<()> {
     }
 
     // Проверяем, существует ли исполняемый файл
+    #[cfg(target_family = "unix")]
     let which_cmd = format!("which {}", parts[0]);
+
+    #[cfg(target_family = "windows")]
+    let which_cmd = format!("where {}", parts[0]);
 
     match execute_shell_command(&which_cmd).await {
         Ok(_) => Ok(()),
@@ -80,15 +84,23 @@ pub async fn validate_command(command: &str) -> Result<()> {
 /// Проверяет доступность необходимых команд
 pub async fn check_required_commands() -> Result<()> {
     let required = ["git", "docker", "ssh", "rsync"];
+    let mut missing_commands = Vec::new();
 
     for cmd in required {
         match validate_command(cmd).await {
             Ok(_) => info!("Команда '{}' доступна", cmd),
             Err(e) => {
-                error!("Требуемая команда '{}' недоступна: {}", cmd, e);
-                return Err(anyhow::anyhow!("Отсутствует требуемая команда: {}", cmd));
+                error!("Команда '{}' недоступна: {}", cmd, e);
+                missing_commands.push(cmd);
             }
         }
+    }
+
+    if !missing_commands.is_empty() {
+        error!(
+            "Отсутствуют некоторые команды: {}. Некоторые операции могут быть недоступны.",
+            missing_commands.join(", ")
+        );
     }
 
     Ok(())

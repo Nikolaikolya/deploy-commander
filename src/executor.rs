@@ -4,6 +4,8 @@ use crate::storage;
 use anyhow::{Context, Result};
 use command_system::{ChainBuilder, ChainExecutionMode, CommandBuilder, ConsoleLogger, LogLevel};
 use log::{error, info, warn};
+use std::fs;
+use std::path::Path;
 
 pub async fn run_commands(config: &Config, deployment_name: &str, event_name: &str) -> Result<()> {
     // Находим деплой и событие
@@ -34,6 +36,20 @@ pub async fn run_commands(config: &Config, deployment_name: &str, event_name: &s
     // Определяем рабочую директорию
     let working_dir = deployment.working_dir.as_deref();
 
+    // Проверяем и создаем рабочую директорию, если указана и не существует
+    if let Some(dir) = working_dir {
+        let dir_path = Path::new(dir);
+        if !dir_path.exists() {
+            info!("Рабочая директория '{}' не существует, создаем...", dir);
+            match fs::create_dir_all(dir_path) {
+                Ok(_) => info!("Рабочая директория '{}' успешно создана", dir),
+                Err(e) => {
+                    warn!("Не удалось создать рабочую директорию '{}': {}", dir, e);
+                }
+            }
+        }
+    }
+
     // Определяем переменные окружения
     let env_vars = deployment
         .environment
@@ -52,7 +68,6 @@ pub async fn run_commands(config: &Config, deployment_name: &str, event_name: &s
         })
         .unwrap_or_default();
 
-    // Создаем и настраиваем цепочку команд
     // Создаем логгер
     let logger = Box::new(ConsoleLogger::new(LogLevel::Info));
 
@@ -60,6 +75,7 @@ pub async fn run_commands(config: &Config, deployment_name: &str, event_name: &s
     let mut chain = ChainBuilder::new(&format!("{}_{}_chain", deployment_name, event_name))
         .execution_mode(ChainExecutionMode::Sequential)
         .logger(logger)
+        .rollback_on_error(true) // Включаем откат при ошибке
         .build();
 
     // Собираем команды в цепочку с учетом рабочей директории и переменных окружения
@@ -77,6 +93,29 @@ pub async fn run_commands(config: &Config, deployment_name: &str, event_name: &s
         // Устанавливаем переменные окружения
         for (key, value) in &env_vars {
             command_builder = command_builder.env_var(key, value);
+        }
+
+        // Устанавливаем флаг игнорирования ошибок
+        if let Some(ignore) = cmd.ignore_errors {
+            if ignore {
+                // Если игнорируем ошибки, не добавляем команду отката
+                // В этом случае команда может завершиться с ошибкой, но выполнение цепочки продолжится
+                info!("Команда '{}' настроена игнорировать ошибки", cmd.command);
+            } else if let Some(rollback_cmd) = &cmd.rollback_command {
+                // Если не игнорируем ошибки и указана команда отката, добавляем ее
+                command_builder = command_builder.rollback(rollback_cmd);
+                info!(
+                    "Команда '{}' настроена с откатом: {}",
+                    cmd.command, rollback_cmd
+                );
+            }
+        } else if let Some(rollback_cmd) = &cmd.rollback_command {
+            // Если флаг ignore_errors не указан, но есть команда отката, добавляем ее
+            command_builder = command_builder.rollback(rollback_cmd);
+            info!(
+                "Команда '{}' настроена с откатом: {}",
+                cmd.command, rollback_cmd
+            );
         }
 
         // Добавляем команду в цепочку

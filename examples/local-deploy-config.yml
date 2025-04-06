@@ -1,0 +1,136 @@
+deployments:
+  - name: get-all-projects
+    description: "Получение всех репозиториев"
+    working_dir: "./temp"
+    events:
+      - name: pre-deploy
+        description: "Создание директорий и тестовых файлов"
+        commands:
+          - command: "cmd.exe /c mkdir temp 2>nul || echo Directory already exists"
+            description: "Создание временной директории"
+            ignore_errors: true
+
+          - command: "cmd.exe /c echo Создание тестовых файлов"
+            description: "Вывод информации"
+            ignore_errors: true
+
+          - command: "cmd.exe /c mkdir temp\\frontend temp\\backend 2>nul || echo Directories already exist"
+            description: "Создание директорий для проектов"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c rmdir /s /q temp\\frontend temp\\backend 2>nul || echo No directories to remove"
+
+          - command: "cmd.exe /c echo console.log(\"Hello from frontend\"); > temp\\frontend\\app.js"
+            description: "Создание тестового файла frontend"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c del /f /q temp\\frontend\\app.js 2>nul || echo No file to remove"
+
+          - command: "cmd.exe /c echo console.log(\"Hello from backend\"); > temp\\backend\\server.js"
+            description: "Создание тестового файла backend"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c del /f /q temp\\backend\\server.js 2>nul || echo No file to remove"
+
+        fail_fast: true
+
+  - name: frontend-app
+    description: "Деплой фронтенд приложения"
+    working_dir: "./temp/frontend"
+    environment:
+      - "NODE_ENV=production"
+      - "PORT=3000"
+    events:
+      - name: pre-deploy
+        description: "Подготовка к деплою"
+        commands:
+          - command: "cmd.exe /c echo Начало деплоя frontend-app"
+            description: "Сообщение о начале деплоя"
+            ignore_errors: true
+
+          - command: "cmd.exe /c echo Подготовка к деплою frontend"
+            description: "Вывод информации"
+            ignore_errors: false
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "cmd.exe /c echo Эмуляция сборки проекта"
+            description: "Вывод информации"
+            ignore_errors: false
+
+          - command: "cmd.exe /c echo Build completed > build.log"
+            description: "Создание файла логов сборки"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c del /f /q build.log 2>nul || echo No file to remove"
+
+          - command: "cmd.exe /c mkdir dist 2>nul || echo Directory already exists && echo ^<html^>^<body^>Frontend App^</body^>^</html^> > dist\\index.html"
+            description: "Создание дистрибутива"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c rmdir /s /q dist 2>nul || echo No directory to remove"
+        fail_fast: true
+
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "cmd.exe /c echo Деплой frontend-app завершен"
+            description: "Сообщение о завершении деплоя"
+            ignore_errors: true
+
+          - command: "cmd.exe /c echo Отправка уведомления о завершении деплоя"
+            description: "Эмуляция отправки уведомления"
+            ignore_errors: true
+        fail_fast: false
+
+  - name: backend-api
+    description: "Деплой бэкенд API"
+    working_dir: "./temp/backend"
+    environment:
+      - "NODE_ENV=production"
+      - "DB_HOST=localhost"
+    events:
+      - name: deploy
+        description: "Основной процесс деплоя backend"
+        commands:
+          - command: "cmd.exe /c echo Эмуляция сборки бэкенда"
+            description: "Вывод информации"
+            ignore_errors: false
+            
+          - command: "cmd.exe /c echo Build completed > build.log"
+            description: "Создание файла логов сборки"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c del /f /q build.log 2>nul || echo No file to remove"
+            
+          - command: "cmd.exe /c mkdir dist 2>nul || echo Directory already exists && echo console.log(\"Backend API running\"); > dist\\server.js"
+            description: "Создание дистрибутива"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c rmdir /s /q dist 2>nul || echo No directory to remove"
+        fail_fast: true
+        
+      - name: rollback-test
+        description: "Тест отката команд"
+        commands:
+          - command: "cmd.exe /c mkdir test-rollback 2>nul || echo Directory already exists"
+            description: "Создание тестовой директории"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c rmdir /s /q test-rollback 2>nul || echo No directory to remove"
+            
+          - command: "cmd.exe /c echo Test file > test-rollback\\file.txt"
+            description: "Создание тестового файла"
+            ignore_errors: false
+            rollback_command: "cmd.exe /c del /f /q test-rollback\\file.txt 2>nul || echo No file to remove"
+            
+          - command: "cmd.exe /c exit /b 1"
+            description: "Имитация ошибки для проверки отката"
+            ignore_errors: false
+        fail_fast: true
+        
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "cmd.exe /c echo Деплой backend-api завершен"
+            description: "Сообщение о завершении деплоя"
+            ignore_errors: true
+            
+          - command: "cmd.exe /c echo Отправка уведомления о завершении деплоя backend"
+            description: "Эмуляция отправки уведомления"
+            ignore_errors: true
+        fail_fast: false 

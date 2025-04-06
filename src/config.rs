@@ -31,6 +31,7 @@ pub struct Command {
     pub command: String,
     pub description: Option<String>,
     pub ignore_errors: Option<bool>,
+    pub rollback_command: Option<String>,
 }
 
 impl Config {
@@ -100,6 +101,7 @@ pub fn create_template_deployment(name: &str, config_path: &str) -> Result<()> {
                     command: "echo 'Начало деплоя'".to_string(),
                     description: Some("Вывод сообщения о начале деплоя".to_string()),
                     ignore_errors: Some(true),
+                    rollback_command: None,
                 }],
                 fail_fast: Some(true),
             },
@@ -113,16 +115,19 @@ pub fn create_template_deployment(name: &str, config_path: &str) -> Result<()> {
                             "Получение последних изменений из репозитория".to_string(),
                         ),
                         ignore_errors: None,
+                        rollback_command: None,
                     },
                     Command {
                         command: "npm ci".to_string(),
                         description: Some("Установка зависимостей".to_string()),
                         ignore_errors: None,
+                        rollback_command: None,
                     },
                     Command {
                         command: "npm run build".to_string(),
                         description: Some("Сборка проекта".to_string()),
                         ignore_errors: None,
+                        rollback_command: None,
                     },
                 ],
                 fail_fast: Some(true),
@@ -135,11 +140,13 @@ pub fn create_template_deployment(name: &str, config_path: &str) -> Result<()> {
                         command: "pm2 restart app".to_string(),
                         description: Some("Перезапуск приложения".to_string()),
                         ignore_errors: None,
+                        rollback_command: None,
                     },
                     Command {
                         command: "echo 'Деплой завершен'".to_string(),
                         description: Some("Вывод сообщения о завершении деплоя".to_string()),
                         ignore_errors: Some(true),
+                        rollback_command: None,
                     },
                 ],
                 fail_fast: Some(false),
