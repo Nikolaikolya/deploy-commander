@@ -10,7 +10,7 @@ deployments:
             description: "Клонирование frontend"
             ignore_errors: true
 
-          - command: "rm -rf me_best_practice || true && git clone https://gitlab.com/Nikolaikolya/me_best_practice.git"
+          - command: "git clone https://gitlab.com/Nikolaikolya/me_best_practice.git"
             description: "Получение репозитория frontend"
             ignore_errors: false
             rollback_command: "rm -rf me_best_practice"
@@ -19,7 +19,7 @@ deployments:
             description: "Клонирование backend"
             ignore_errors: true
 
-          - command: "rm -rf advanced_todo_backend || true && git clone https://gitlab.com/Nikolaikolya/advanced_todo_backend.git"
+          - command: "git clone https://gitlab.com/Nikolaikolya/advanced_todo_backend.git"
             description: "Получение репозитория backend"
             ignore_errors: false
             rollback_command: "rm -rf advanced_todo_backend"
