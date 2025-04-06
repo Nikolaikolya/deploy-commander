@@ -1,0 +1,1 @@
+{"GLOBAL_ENVIRONMENT": "production", "GLOBAL_API_URL": "https://api.example.com", "GLOBAL_DATABASE_HOST": "db.example.com", "GLOBAL_DATABASE_PORT": "5432"}

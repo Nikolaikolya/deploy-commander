@@ -56,17 +56,18 @@ pub async fn execute_shell_command(command: &str) -> Result<String> {
     match command.execute().await {
         Ok(result) => {
             if result.success {
+                info!("Команда успешно выполнена. Вывод: {}", result.output.trim());
                 Ok(result.output)
             } else {
-                Err(anyhow::anyhow!(
-                    "Команда завершилась с ошибкой: {}",
-                    result
-                        .error
-                        .unwrap_or_else(|| "<неизвестная ошибка>".to_string())
-                ))
+                let err_msg = result.error.unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+                error!("Команда завершилась с ошибкой: {}", err_msg);
+                Err(anyhow::anyhow!("Команда завершилась с ошибкой: {}", err_msg))
             }
         }
-        Err(e) => Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e)),
+        Err(e) => {
+            error!("Ошибка выполнения команды: {}", e);
+            Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e))
+        }
     }
 }
 

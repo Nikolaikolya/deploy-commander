@@ -40,6 +40,8 @@ pub enum EventType {
         deployment: String,
         /// Имя события
         event: String,
+        /// Текст ошибки
+        error: String,
     },
     /// Ошибка команды
     CommandFailed {
@@ -96,10 +98,10 @@ impl EventEmitter {
                     deployment, event
                 );
             }
-            EventType::DeploymentFailed { deployment, event } => {
+            EventType::DeploymentFailed { deployment, event, error } => {
                 error!(
-                    "Событие: Ошибка деплоя '{}', событие '{}'",
-                    deployment, event
+                    "Событие: Ошибка деплоя '{}', событие '{}': {}",
+                    deployment, event, error
                 );
             }
             EventType::CommandFailed {

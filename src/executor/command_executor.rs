@@ -275,22 +275,24 @@ pub fn create_simple_command(
 #[allow(dead_code)]
 pub async fn execute_simple_command(command: &str) -> anyhow::Result<String> {
     let cmd_name = format!("simple_cmd_{}", chrono::Utc::now().timestamp_millis());
+    log::info!("Выполнение простой команды: {}", command);
     let command = create_simple_command(&cmd_name, command, None, &[], None);
 
     match command.execute().await {
         Ok(result) => {
             if result.success {
+                log::info!("Команда '{}' успешно выполнена. Вывод: {}", cmd_name, result.output.trim());
                 Ok(result.output)
             } else {
-                Err(anyhow::anyhow!(
-                    "Команда завершилась с ошибкой: {}",
-                    result
-                        .error
-                        .unwrap_or_else(|| "<неизвестная ошибка>".to_string())
-                ))
+                let err_msg = result.error.unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+                log::error!("Команда '{}' завершилась с ошибкой: {}", cmd_name, err_msg);
+                Err(anyhow::anyhow!("Команда завершилась с ошибкой: {}", err_msg))
             }
         }
-        Err(e) => Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e)),
+        Err(e) => {
+            log::error!("Ошибка выполнения команды '{}': {}", cmd_name, e);
+            Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e))
+        }
     }
 }
 
@@ -312,6 +314,7 @@ pub async fn execute_command_with_variables(
     variables_file: Option<&str>,
 ) -> anyhow::Result<String> {
     let cmd_name = format!("var_cmd_{}", chrono::Utc::now().timestamp_millis());
+    log::info!("Выполнение команды с переменными: {}", command);
 
     // Настраиваем строитель команды
     let mut builder =
@@ -320,6 +323,7 @@ pub async fn execute_command_with_variables(
     // Добавляем переменные окружения
     for (key, value) in &variables {
         builder = builder.env_var(key, value);
+        log::debug!("Добавлена переменная окружения: {}={}", key, value);
     }
 
     // Загружаем переменные из файла, если указан
@@ -335,6 +339,7 @@ pub async fn execute_command_with_variables(
                     );
                     for (key, value) in vars {
                         builder = builder.env_var(&key, &value);
+                        log::debug!("Добавлена переменная из файла: {}={}", key, value);
                     }
                 }
                 Err(e) => {
@@ -352,16 +357,17 @@ pub async fn execute_command_with_variables(
     match command.execute().await {
         Ok(result) => {
             if result.success {
+                log::info!("Команда с переменными '{}' успешно выполнена. Вывод: {}", cmd_name, result.output.trim());
                 Ok(result.output)
             } else {
-                Err(anyhow::anyhow!(
-                    "Команда завершилась с ошибкой: {}",
-                    result
-                        .error
-                        .unwrap_or_else(|| "<неизвестная ошибка>".to_string())
-                ))
+                let err_msg = result.error.unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+                log::error!("Команда с переменными '{}' завершилась с ошибкой: {}", cmd_name, err_msg);
+                Err(anyhow::anyhow!("Команда завершилась с ошибкой: {}", err_msg))
             }
         }
-        Err(e) => Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e)),
+        Err(e) => {
+            log::error!("Ошибка выполнения команды с переменными '{}': {}", cmd_name, e);
+            Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e))
+        }
     }
 }

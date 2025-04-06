@@ -176,7 +176,7 @@ async fn execute_chain_and_handle_result(
                 event_name,
                 &chain_result,
             ) {
-                warn!("Ошибка записи результата в историю: {}", e);
+                warn!("Ошибка записи результата: {}", e);
             }
 
             if chain_result.success {
@@ -194,47 +194,74 @@ async fn execute_chain_and_handle_result(
                     event: event_name.to_string(),
                 });
 
+                // Логируем результаты всех команд в цепочке для отображения вывода
+                for (index, cmd_result) in chain_result.results.iter().enumerate() {
+                    info!(
+                        "Результат команды #{}: {}",
+                        index + 1,
+                        cmd_result.output.trim()
+                    );
+                }
+
                 Ok(())
             } else {
                 // Произошла ошибка в одной из команд
-                let error_msg = chain_result
-                    .error
-                    .unwrap_or_else(|| "Неизвестная ошибка".to_string());
+                let error_message = match &chain_result.error {
+                    Some(msg) => msg.clone(),
+                    None => {
+                        // Находим первую команду, которая завершилась с ошибкой
+                        let failed_cmd = chain_result
+                            .results
+                            .iter()
+                            .find(|r| !r.success)
+                            .and_then(|r| r.error.as_ref())
+                            .unwrap_or(&"<неизвестная ошибка>".to_string())
+                            .clone();
+                        format!("Ошибка выполнения команды: {}", failed_cmd)
+                    }
+                };
 
-                let duration = start_time.elapsed();
                 error!(
-                    "Деплой '{}', событие '{}' завершилось с ошибками за {:.2} секунд: {}",
-                    deployment_name,
-                    event_name,
-                    duration.as_secs_f64(),
-                    error_msg
+                    "Деплой '{}', событие '{}' завершилось с ошибкой: {}",
+                    deployment_name, event_name, error_message
                 );
 
                 emitter.emit(EventType::DeploymentFailed {
                     deployment: deployment_name.to_string(),
                     event: event_name.to_string(),
+                    error: error_message.clone(),
                 });
 
-                Err(anyhow::anyhow!(
-                    "Деплой завершился с ошибками: {}",
-                    error_msg
-                ))
+                // Логируем результаты команд, включая информацию об ошибке
+                for (index, cmd_result) in chain_result.results.iter().enumerate() {
+                    if cmd_result.success {
+                        info!(
+                            "Команда #{}: {}",
+                            index + 1,
+                            cmd_result.output.trim()
+                        );
+                    } else {
+                        error!(
+                            "Ошибка в команде #{}: {}",
+                            index + 1,
+                            cmd_result.error.as_ref().unwrap_or(&"<неизвестная ошибка>".to_string())
+                        );
+                    }
+                }
+
+                Err(anyhow::anyhow!(error_message))
             }
         }
         Err(e) => {
-            // Критическая ошибка выполнения цепочки
-            let duration = start_time.elapsed();
             error!(
-                "Критическая ошибка выполнения деплоя '{}', событие '{}' за {:.2} секунд: {}",
-                deployment_name,
-                event_name,
-                duration.as_secs_f64(),
-                e
+                "Ошибка при выполнении цепочки команд для деплоя '{}': {}",
+                deployment_name, e
             );
 
             emitter.emit(EventType::DeploymentFailed {
                 deployment: deployment_name.to_string(),
                 event: event_name.to_string(),
+                error: e.to_string(),
             });
 
             // Записываем ошибку в историю
@@ -248,7 +275,7 @@ async fn execute_chain_and_handle_result(
                 warn!("Ошибка записи события: {}", log_err);
             }
 
-            Err(anyhow::anyhow!("Критическая ошибка деплоя: {}", e))
+            Err(anyhow::anyhow!("Ошибка выполнения команд: {}", e))
         }
     }
 }
@@ -271,60 +298,80 @@ pub async fn run_commands(
     event_name: &str,
     global_variables_file: Option<&str>,
 ) -> Result<()> {
-    // Засекаем время начала выполнения для оценки производительности
-    let start_time = Instant::now();
-    trace!(
-        "Начало выполнения деплоя '{}', событие '{}'",
-        deployment_name,
-        event_name
-    );
-
-    // Создаем эмиттер событий
-    let emitter = EventEmitter::new();
-
-    // Отправляем событие о начале выполнения
-    emitter.emit(EventType::DeploymentStarted {
-        deployment: deployment_name.to_string(),
-        event: event_name.to_string(),
-    });
-
-    // Определяем глобальный файл переменных
-    let global_vars_file = determine_global_variables_file(global_variables_file);
-
-    // Настраиваем рабочую директорию
-    if let Err(e) = setup_deployment_directory(config, deployment_name) {
-        return Err(anyhow::anyhow!(
-            "Ошибка настройки рабочей директории: {}",
-            e
-        ));
-    }
-
-    // Создаем цепочку команд
-    trace!(
-        "Создание цепочки команд для деплоя '{}', событие '{}'",
-        deployment_name,
-        event_name
-    );
-    let chain =
-        chain_builder::build_command_chain(config, deployment_name, event_name, global_vars_file)?;
-
-    // Выполняем цепочку команд и обрабатываем результат
     info!(
-        "Выполнение цепочки команд для деплоя '{}', событие '{}'",
+        "Запуск команд деплоя '{}', событие '{}'",
         deployment_name, event_name
     );
 
-    // Получаем путь к истории деплоев
-    let history_path = get_history_path();
-
-    // Выполняем цепочку и обрабатываем результат
-    execute_chain_and_handle_result(
-        chain,
+    // Строим цепочку команд
+    let chain = chain_builder::build_command_chain(
+        config,
         deployment_name,
         event_name,
-        &history_path,
-        start_time,
-        emitter,
-    )
-    .await
+        global_variables_file,
+    )?;
+
+    // Запускаем цепочку команд
+    info!("Начало выполнения цепочки команд...");
+    
+    let result = chain.execute().await;
+
+    match result {
+        Ok(chain_result) => {
+            if chain_result.success {
+                info!("Успешно выполнены все команды цепочки");
+                
+                // Логируем результаты всех команд в цепочке
+                for (index, cmd_result) in chain_result.results.iter().enumerate() {
+                    info!(
+                        "Результат команды #{}: успех={}, вывод={}",
+                        index + 1,
+                        cmd_result.success,
+                        cmd_result.output.trim()
+                    );
+                }
+                
+                Ok(())
+            } else {
+                let error_message = match &chain_result.error {
+                    Some(msg) => msg.clone(),
+                    None => {
+                        let failed_cmd = chain_result
+                            .results
+                            .iter()
+                            .find(|r| !r.success)
+                            .and_then(|r| r.error.as_ref())
+                            .unwrap_or(&"<неизвестная ошибка>".to_string())
+                            .clone();
+                        format!("Ошибка выполнения команды: {}", failed_cmd)
+                    }
+                };
+                
+                error!("Выполнение цепочки команд завершилось с ошибкой: {}", error_message);
+                
+                // Логируем результаты всех выполненных команд в цепочке
+                for (index, cmd_result) in chain_result.results.iter().enumerate() {
+                    if cmd_result.success {
+                        info!(
+                            "Результат команды #{}: успех=true, вывод={}",
+                            index + 1,
+                            cmd_result.output.trim()
+                        );
+                    } else {
+                        error!(
+                            "Ошибка в команде #{}: {}",
+                            index + 1,
+                            cmd_result.error.as_ref().unwrap_or(&"<неизвестная ошибка>".to_string())
+                        );
+                    }
+                }
+                
+                Err(anyhow::anyhow!(error_message))
+            }
+        }
+        Err(e) => {
+            error!("Ошибка при выполнении цепочки команд: {}", e);
+            Err(anyhow::anyhow!("Ошибка выполнения команд: {}", e))
+        }
+    }
 }
