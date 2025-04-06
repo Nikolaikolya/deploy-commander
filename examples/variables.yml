@@ -1,0 +1,54 @@
+# Пример файла переменных в формате YAML
+# Используется для демонстрации поддержки YAML в Deploy Commander
+
+# Базовые переменные
+DB_HOST: localhost
+DB_PORT: 5432
+API_KEY: "yaml-api-key-123"
+YAML_SPECIFIC: "это значение только в YAML"
+
+# Переменная со сложным значением (будет сериализована в JSON)
+complex_value:
+  nested: true
+  count: 42
+  items:
+    - "первый"
+    - "второй"
+    - "третий"
+
+# Вложенные значения
+nested_values:
+  first:
+    name: "Первый элемент"
+    id: 1001
+  second:
+    name: "Второй элемент"
+    id: 1002
+
+# Массив объектов
+users:
+  - name: "Иван"
+    role: "admin"
+  - name: "Мария"
+    role: "user"
+  - name: "Алексей"
+    role: "moderator"
+
+# Переменная с подстановкой из окружения
+# Значение USERNAME будет взято из переменной окружения
+CONNECTION_STRING: "jdbc:postgresql://${DB_HOST}:${DB_PORT}/main?user=${USERNAME}"
+
+# Многострочное значение
+SERVER_CONFIG: |
+  server {
+    listen 80;
+    server_name example.com;
+    root /var/www/example;
+    
+    location / {
+      proxy_pass http://localhost:3000;
+    }
+  }
+
+# Секретный ключ (для примера)
+SECRET_KEY: "very-secret-key-that-should-be-protected" 

@@ -1,0 +1,45 @@
+deployments:
+  - name: yaml-variables-demo
+    description: "Демонстрация использования YAML файла переменных"
+    working_dir: "./examples/temp"
+    environment:
+      - "ENV=production"
+    events:
+      - name: yaml-variables-mode
+        description: "Использование переменных из YAML файла"
+        commands:
+          - command: "echo 'Подключение к базе данных {#DB_HOST}:{#DB_PORT}'"
+            description: "Вывод переменных из YAML файла"
+            interactive: true
+            variables_file: "./examples/variables.yml"
+            
+          - command: "echo 'Сложное значение: {#complex_value}'"
+            description: "Вывод сложного значения из YAML"
+            interactive: true
+            variables_file: "./examples/variables.yml"
+            
+          - command: "echo 'Вложенное значение: {#nested_values.first.name}'"
+            description: "Вывод вложенного значения из YAML"
+            interactive: true
+            variables_file: "./examples/variables.yml"
+            
+      - name: mixed-yaml-json-mode
+        description: "Смешанное использование JSON и YAML переменных"
+        commands:
+          - command: "echo 'YAML переменная: {#YAML_SPECIFIC}, JSON переменная: {#JSON_SPECIFIC}'"
+            description: "Смешанное использование переменных из YAML и JSON"
+            interactive: true
+            variables_file: "./examples/variables.yml"
+            
+          - command: "echo 'Глобальный проект: {#PROJECT_NAME}, API_KEY: {#API_KEY}'"
+            description: "Использование общих переменных"
+            interactive: true
+            variables_file: "./examples/variables.json"
+            
+      - name: yaml-env-variables
+        description: "Использование переменных окружения внутри YAML переменных"
+        commands:
+          - command: "echo 'Переменная с подстановкой окружения: {#CONNECTION_STRING}'"
+            description: "Переменная с подстановкой из окружения"
+            interactive: true
+            variables_file: "./examples/variables.yml" 

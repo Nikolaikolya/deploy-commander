@@ -1,0 +1,14 @@
+deployments:
+- name: get-all-projects
+  description: Получение всех репозиториев
+  working_dir: /home/kolyan
+  environment: null
+  variables_file: './variables.json'
+  events:
+  - name: pre-deploy
+    description: Клонирование проектов
+    commands:
+    - command: echo "test"
+      description: Создание пользователя
+    - command: echo "{#APP_NAME} {#VERSION} {#DB_HOST} {#DB_PORT}"
+      description: Создание пользователя

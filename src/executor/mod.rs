@@ -16,6 +16,7 @@
 - `command_executor` - выполнение команд через SystemCommand
 - `chain_builder` - создание и настройка цепочек команд
 - `runner` - запуск цепочек команд с обработкой ошибок и откатом
+- `variable_loader` - обработка переменных при выполнении команд
 
 ## Основные функции
 
@@ -23,9 +24,10 @@
 - `execute_command_with_variables` - выполняет команду с подстановкой переменных
 */
 
-mod chain_builder;
-mod command_executor;
+pub mod chain_builder;
+pub mod command_executor;
 pub mod runner;
+pub mod variable_loader;
 
 use crate::config::Config;
 use anyhow::Result;
@@ -93,5 +95,6 @@ pub async fn run_commands(
     event_name: &str,
     global_variables_file: Option<&str>,
 ) -> Result<()> {
-    runner::run_commands(config, deployment_name, event_name, global_variables_file).await
+    let history_path = runner::get_history_path();
+    runner::execute_command(config, deployment_name, event_name, &history_path).await
 }

@@ -12,6 +12,33 @@
 
 Конфигурация для локального тестирования с относительными путями и временными директориями. Готова к использованию без необходимости настройки каких-либо путей в системе.
 
+### `interactive-config-example.yml`
+
+Пример конфигурации для демонстрации работы с переменными, включая интерактивный ввод, переменные из файлов (JSON и YAML) и переменные окружения.
+
+## Примеры тестирования переменных
+
+### `direct_variables_file_test.rs`
+
+Пример прямого тестирования загрузки переменных из JSON и YAML файлов с помощью CommandBuilder:
+```bash
+cargo run --example direct_variables_file_test
+```
+
+### `variable_demo.rs`
+
+Демонстрация работы с различными типами переменных, включая интерактивные, переменные окружения и переменные из файлов:
+```bash
+cargo run --example variable_demo
+```
+
+### `project_variables_test.rs`
+
+Пример работы с переменными проекта через системные механизмы:
+```bash
+cargo run --example project_variables_test
+```
+
 ## Функции системы команд
 
 - **Выполнение цепочки команд**: Последовательное выполнение команд в рамках одного события
@@ -171,7 +198,10 @@ Deploy Commander поддерживает несколько типов пере
 1. **Интерактивные переменные** - `{name}` - запрашиваются у пользователя во время выполнения
 2. **Переменные окружения** - `{$VAR_NAME}` - берутся из окружения
 3. **Переменные из файла** - `{#VAR_NAME}` - берутся из локального файла, указанного в `variables_file`
+   - поддерживаются форматы JSON (`.json`) и YAML (`.yml`, `.yaml`)
+   - формат определяется автоматически по расширению файла
 4. **Глобальные переменные** - `{#GLOBAL_VAR}` - берутся из глобального файла, указанного в `settings.json`
+   - глобальный файл также может быть в формате YAML
 
 ### Запуск примеров с различными типами переменных
 
@@ -182,8 +212,11 @@ cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-dem
 # Использование переменных окружения
 cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e env-variables-mode
 
-# Использование переменных из файла
+# Использование переменных из JSON-файла
 cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e file-variables-mode
+
+# Использование переменных из YAML-файла
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e yaml-variables-mode
 
 # Использование глобальных переменных
 cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e global-variables-mode
@@ -196,6 +229,27 @@ cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-dem
 
 # Демонстрация приоритета переменных (локальные имеют приоритет над глобальными)
 cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e priority-variables-mode
+```
+
+### Примеры файлов переменных
+
+#### JSON формат (variables.json)
+```json
+{
+  "DB_HOST": "localhost", 
+  "DB_PORT": "5432",
+  "API_KEY": "test-api-key-123"
+}
+```
+
+#### YAML формат (variables.yml)
+```yaml
+DB_HOST: localhost
+DB_PORT: 5432
+API_KEY: test-api-key-123
+complex_value:
+  nested: true
+  count: 42
 ```
 
 ## Примеры запуска деплоев
