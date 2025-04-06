@@ -1,7 +1,32 @@
 deployments:
+  - name: get-all-projects
+    description: "Получение всех репозиториев"
+    working_dir: "/home/kolyan"
+    events:
+      - name: pre-deploy
+        description: "Клонирование проектов"
+        commands:
+          - command: "echo 'Клонирование frontend'"
+            description: "Клонирование frontend"
+            ignore_errors: true
+
+          - command: "git clone https://gitlab.com/Nikolaikolya/me_best_practice.git"
+            description: "Получение репозитория frontend"
+            ignore_errors: false
+
+          - command: "echo 'Клонирование backend'"
+            description: "Клонирование backend"
+            ignore_errors: true
+
+          - command: "git clone https://gitlab.com/Nikolaikolya/advanced_todo_backend.git"
+            description: "Получение репозитория backend"
+            ignore_errors: false
+
+        fail_fast: true
+
   - name: frontend-app
     description: "Деплой фронтенд приложения"
-    working_dir: "/var/www/frontend"
+    working_dir: "/home/kolyan/me_best_practice"
     environment:
       - "NODE_ENV=production"
       - "PORT=3000"
@@ -11,67 +36,48 @@ deployments:
         commands:
           - command: "echo 'Начало деплоя frontend-app'"
             description: "Сообщение о начале деплоя"
-            timeout: 5
             ignore_errors: true
-          - command: "git fetch"
+
+          - command: "git pull origin main"
             description: "Получение изменений из репозитория"
-            timeout: 30
         fail_fast: true
 
       - name: deploy
         description: "Основной процесс деплоя"
         commands:
-          - command: "git pull origin main"
-            description: "Получение последних изменений"
-            timeout: 60
-          - command: "npm ci"
-            description: "Установка зависимостей"
-            timeout: 300
-          - command: "npm run build"
-            description: "Сборка проекта"
-            timeout: 300
+          - command: "docker build -t bp-app ."
+            description: "Создание контейнера"
+          - command: "docker run -d --name bp-container -p 3000:3000 --restart always bp-app"
+            description: "Запуск контейнера"
         fail_fast: true
 
       - name: post-deploy
         description: "Действия после деплоя"
         commands:
-          - command: "pm2 restart frontend"
-            description: "Перезапуск приложения в PM2"
-            timeout: 30
+          - command: "cd .. && rm -rf me_best_practice"
+            description: "Удаление исходников"
+
           - command: "echo 'Деплой frontend-app завершен'"
             description: "Сообщение о завершении деплоя"
-            timeout: 5
+            ignore_errors: true
+
+          - command: "curl -X POST https://api.telegram.org/bot<TOKEN>/sendMessage -d chat_id=<ID> -d text='Frontend успешно задеплоен'"
+            description: "Уведомление об поднятии контейнера"
             ignore_errors: true
         fail_fast: false
 
   - name: backend-api
     description: "Деплой бэкенд API"
-    working_dir: "/var/www/backend"
+    working_dir: "/home/kolyan/advanced_todo_backend"
     environment:
       - "NODE_ENV=production"
       - "DB_HOST=localhost"
     events:
-      - name: backup
-        description: "Резервное копирование перед деплоем"
-        commands:
-          - command: "pg_dump -U postgres -d myapp > /backups/myapp_$(date +%Y%m%d_%H%M%S).sql"
-            description: "Резервное копирование базы данных"
-            timeout: 120
-        fail_fast: true
-
       - name: deploy
-        description: "Основной процесс деплоя"
+        description: "Основной процесс деплоя backend"
         commands:
-          - command: "git pull origin main"
-            description: "Получение последних изменений"
-            timeout: 60
-          - command: "npm ci"
-            description: "Установка зависимостей"
-            timeout: 300
-          - command: "npm run migrations"
-            description: "Выполнение миграций базы данных"
-            timeout: 120
-          - command: "pm2 restart backend-api"
-            description: "Перезапуск API сервера"
-            timeout: 30
+          - command: "docker build -t at-server ."
+            description: "Создание контейнера"
+          - command: "docker run -d --name at-server-container -p 4000:4000 --restart always at-server"
+            description: "Запуск контейнера"
         fail_fast: true
