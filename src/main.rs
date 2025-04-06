@@ -34,29 +34,11 @@ async fn run_specific_event(config: &Config, deployment: &str, event: &str, hist
     match executor::run_commands(config, deployment, event).await {
         Ok(_) => {
             info!("Все команды выполнены успешно");
-            // Запись успешного завершения
-            if let Err(e) = storage::record_deployment(
-                history_path,
-                deployment,
-                &format!("complete-{}", event),
-                true,
-                Some("Деплой успешно завершен".to_string()),
-            ) {
-                warn!("Ошибка записи события: {}", e);
-            }
+            // Запись успешного завершения уже выполняется в executor
         }
         Err(e) => {
             error!("Ошибка выполнения команд: {}", e);
-            // Запись ошибки
-            if let Err(log_err) = storage::record_deployment(
-                history_path,
-                deployment,
-                &format!("failed-{}", event),
-                false,
-                Some(e.to_string()),
-            ) {
-                warn!("Ошибка записи события: {}", log_err);
-            }
+            // Запись ошибки уже выполняется в executor
             exit(1);
         }
     }

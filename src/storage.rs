@@ -1,4 +1,5 @@
 use anyhow::Result;
+use command_system::chain::command_chain::ChainResult;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -133,5 +134,54 @@ pub fn clear_deployment_history(path: &str, deployment: Option<&str>) -> Result<
     }
 
     history.save(path)?;
+    Ok(())
+}
+
+/// Записывает результат выполнения цепочки команд
+pub fn record_chain_result(
+    path: &str,
+    deployment: &str,
+    event: &str,
+    chain_result: &ChainResult,
+) -> Result<()> {
+    let mut history = match DeploymentHistory::load(path) {
+        Ok(h) => h,
+        Err(e) => {
+            error!("Ошибка загрузки истории деплоев: {}", e);
+            DeploymentHistory {
+                deployments: HashMap::new(),
+            }
+        }
+    };
+
+    // Получаем текущее время
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Ошибка получения времени")
+        .as_secs();
+
+    // Создаем запись
+    let record = DeploymentRecord {
+        timestamp,
+        deployment: deployment.to_string(),
+        event: format!(
+            "{}-{}",
+            if chain_result.success {
+                "complete"
+            } else {
+                "failed"
+            },
+            event
+        ),
+        success: chain_result.success,
+        details: chain_result.error.clone(),
+    };
+
+    // Добавляем запись
+    history.add_record(record);
+
+    // Сохраняем историю
+    history.save(path)?;
+
     Ok(())
 }

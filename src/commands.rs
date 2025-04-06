@@ -1,85 +1,63 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use log::{error, info};
-use std::io::{BufRead, BufReader};
-use std::process::{Command, Stdio};
 
-/// Выполняет команду в системе с выводом результатов в консоль
-pub fn execute_shell_command(command: &str) -> Result<String> {
+use command_system::command::ShellCommand;
+use command_system::{
+    ChainBuilder, ChainExecutionMode, CommandBuilder, CommandExecution, ConsoleLogger,
+    ExecutionMode, LogLevel,
+};
+
+/// Создает команду Command System из строки
+pub fn create_command(name: &str, command_str: &str) -> ShellCommand {
+    CommandBuilder::new(name, command_str)
+        .execution_mode(ExecutionMode::Sequential)
+        .build()
+}
+
+/// Создает цепочку команд для последовательного выполнения
+pub fn create_command_chain(
+    name: &str,
+    commands: Vec<(String, String)>,
+) -> Result<command_system::CommandChain> {
+    // Создаем логгер
+    let logger = Box::new(ConsoleLogger::new(LogLevel::Info));
+
+    // Создаем цепочку команд
+    let mut chain = ChainBuilder::new(name)
+        .execution_mode(ChainExecutionMode::Sequential)
+        .logger(logger)
+        .build();
+
+    // Добавляем команды в цепочку
+    for (cmd_name, cmd_str) in commands {
+        let command = create_command(&cmd_name, &cmd_str);
+        chain.add_command(command);
+    }
+
+    Ok(chain)
+}
+
+/// Выполняет команду в системе
+pub async fn execute_shell_command(command: &str) -> Result<String> {
     info!("Выполнение команды: {}", command);
 
-    // Разделяем команду на части
-    let parts: Vec<&str> = command.trim().split_whitespace().collect();
-    if parts.is_empty() {
-        return Err(anyhow::anyhow!("Пустая команда"));
-    }
+    let cmd_name = format!("cmd_{}", chrono::Utc::now().timestamp_millis());
+    let command = create_command(&cmd_name, command);
 
-    // Создаем процесс
-    let mut cmd = Command::new(parts[0]);
-
-    // Добавляем аргументы
-    if parts.len() > 1 {
-        cmd.args(&parts[1..]);
-    }
-
-    // Настраиваем вывод для перехвата
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-
-    // Выполняем команду
-    let mut process = cmd
-        .spawn()
-        .with_context(|| format!("Ошибка запуска команды: {}", command))?;
-
-    // Перехватываем и выводим stdout в реальном времени
-    let stdout = process
-        .stdout
-        .take()
-        .ok_or_else(|| anyhow::anyhow!("Не удалось получить stdout"))?;
-
-    let stdout_reader = BufReader::new(stdout);
-    let mut stdout_output = String::new();
-
-    for line in stdout_reader.lines() {
-        if let Ok(line) = line {
-            println!("{}", line);
-            stdout_output.push_str(&line);
-            stdout_output.push('\n');
-        }
-    }
-
-    // Ждем завершения процесса
-    let status = process
-        .wait()
-        .with_context(|| format!("Ошибка при ожидании завершения команды: {}", command))?;
-
-    // Проверяем код возврата
-    if status.success() {
-        Ok(stdout_output)
-    } else {
-        let exit_code = status.code().unwrap_or(-1);
-
-        // Получаем stderr после завершения процесса
-        let stderr = process
-            .stderr
-            .take()
-            .ok_or_else(|| anyhow::anyhow!("Не удалось получить stderr"))?;
-
-        let stderr_reader = BufReader::new(stderr);
-        let mut stderr_output = String::new();
-
-        for line in stderr_reader.lines() {
-            if let Ok(line) = line {
-                eprintln!("{}", line);
-                stderr_output.push_str(&line);
-                stderr_output.push('\n');
+    match command.execute().await {
+        Ok(result) => {
+            if result.success {
+                Ok(result.output)
+            } else {
+                Err(anyhow::anyhow!(
+                    "Команда завершилась с ошибкой: {}",
+                    result
+                        .error
+                        .unwrap_or_else(|| "<неизвестная ошибка>".to_string())
+                ))
             }
         }
-
-        Err(anyhow::anyhow!(
-            "Команда завершилась с ошибкой (код {}): {}",
-            exit_code,
-            stderr_output
-        ))
+        Err(e) => Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e)),
     }
 }
 
@@ -93,7 +71,7 @@ pub fn validate_command(command: &str) -> Result<()> {
     // Проверяем, существует ли исполняемый файл
     let which_cmd = format!("which {}", parts[0]);
 
-    match execute_shell_command(&which_cmd) {
+    match tokio::runtime::Runtime::new()?.block_on(execute_shell_command(&which_cmd)) {
         Ok(_) => Ok(()),
         Err(_) => Err(anyhow::anyhow!("Команда '{}' не найдена", parts[0])),
     }
