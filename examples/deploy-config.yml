@@ -47,6 +47,8 @@ deployments:
         commands:
           - command: "docker build -t bp-app ."
             description: "Создание контейнера"
+          - command: "docker rm -f bp-container || true"
+            description: "Удаление старого контейнера"
           - command: "docker run -d --name bp-container -p 3000:3000 --restart always bp-app"
             description: "Запуск контейнера"
         fail_fast: true
@@ -78,6 +80,8 @@ deployments:
         commands:
           - command: "docker build -t at-server ."
             description: "Создание контейнера"
+          - command: "docker rm -f at-server-container || true" 
+            description: "Удаление старого контейнера"
           - command: "docker run -d --name at-server-container -p 4000:4000 --restart always at-server"
             description: "Запуск контейнера"
         fail_fast: true
