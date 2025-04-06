@@ -1,0 +1,93 @@
+deployments:
+  - name: service-a
+    description: "Деплой сервиса A"
+    working_dir: "./temp"
+    events:
+      - name: pre-deploy
+        description: "Подготовка к деплою"
+        commands:
+          - command: "if not exist .\\service-a mkdir .\\service-a"
+            description: "Создание рабочей директории"
+            ignore_errors: true
+          
+          - command: "echo Начало деплоя service-a > .\\service-a\\deploy.log"
+            description: "Добавление записи о начале деплоя"
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "echo Выполнение команд деплоя service-a >> .\\service-a\\deploy.log"
+            description: "Имитация деплоя"
+            
+          - command: "echo %date% %time% >> .\\service-a\\deploy.log"
+            description: "Запись времени деплоя"
+        fail_fast: true
+
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "echo Деплой service-a завершен >> .\\service-a\\deploy.log"
+            description: "Запись о завершении деплоя"
+
+  - name: service-b
+    description: "Деплой сервиса B"
+    working_dir: "./temp"
+    events:
+      - name: pre-deploy
+        description: "Подготовка к деплою"
+        commands:
+          - command: "if not exist .\\service-b mkdir .\\service-b"
+            description: "Создание рабочей директории"
+            ignore_errors: true
+            
+          - command: "echo Начало деплоя service-b > .\\service-b\\deploy.log"
+            description: "Добавление записи о начале деплоя"
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "echo Выполнение команд деплоя service-b >> .\\service-b\\deploy.log"
+            description: "Имитация деплоя"
+            
+          - command: "echo %date% %time% >> .\\service-b\\deploy.log"
+            description: "Запись времени деплоя"
+        fail_fast: true
+
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "echo Деплой service-b завершен >> .\\service-b\\deploy.log"
+            description: "Запись о завершении деплоя"
+
+  - name: service-c
+    description: "Деплой сервиса C"
+    working_dir: "./temp"
+    events:
+      - name: pre-deploy
+        description: "Подготовка к деплою"
+        commands:
+          - command: "if not exist .\\service-c mkdir .\\service-c"
+            description: "Создание рабочей директории"
+            ignore_errors: true
+            
+          - command: "echo Начало деплоя service-c > .\\service-c\\deploy.log"
+            description: "Добавление записи о начале деплоя"
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "echo Выполнение команд деплоя service-c >> .\\service-c\\deploy.log"
+            description: "Имитация деплоя"
+            
+          - command: "echo %date% %time% >> .\\service-c\\deploy.log"
+            description: "Запись времени деплоя"
+        fail_fast: true
+
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "echo Деплой service-c завершен >> .\\service-c\\deploy.log"
+            description: "Запись о завершении деплоя" 

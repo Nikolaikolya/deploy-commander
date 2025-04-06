@@ -28,7 +28,7 @@
 
 ## Примеры команд
 
-### Использование локальной конфигурации
+### Запуск локальной конфигурации
 
 ```bash
 # Инициализация тестовой среды
@@ -118,6 +118,18 @@ cargo run -- -c ./examples/deploy-config.yml run -d frontend-app -e deploy
 cargo run -- -c ./examples/deploy-config.yml run -d backend-api
 ```
 
+### Запуск всех деплоев из конфигурации одновременно
+
+```bash
+cargo run -- -c ./examples/deploy-config.yml run -d all
+```
+
+### Запуск всех деплоев с конкретным событием
+
+```bash
+cargo run -- -c ./examples/deploy-config.yml run -d all -e deploy
+```
+
 ### Просмотр списка доступных деплоев и событий
 
 ```bash
@@ -148,4 +160,70 @@ cargo run -- -c ./examples/deploy-config.yml clear-history -d frontend-app
 
 Выполнение команд внутри одного события происходит последовательно, с использованием цепочки Command System. Если одна из команд завершается с ошибкой и для события установлен флаг fail_fast: true, выполнение текущего события останавливается.
 
-Если при выполнении одного из событий происходит ошибка, деплой останавливается и последующие события не выполняются. 
+Если при выполнении одного из событий происходит ошибка, деплой останавливается и последующие события не выполняются.
+
+## Примеры использования переменных
+
+### Виды переменных
+
+Deploy Commander поддерживает несколько типов переменных:
+
+1. **Интерактивные переменные** - `{name}` - запрашиваются у пользователя во время выполнения
+2. **Переменные окружения** - `{$VAR_NAME}` - берутся из окружения
+3. **Переменные из файла** - `{#VAR_NAME}` - берутся из локального файла, указанного в `variables_file`
+4. **Глобальные переменные** - `{#GLOBAL_VAR}` - берутся из глобального файла, указанного в `settings.json`
+
+### Запуск примеров с различными типами переменных
+
+```bash
+# Интерактивный ввод переменных
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e interactive-mode
+
+# Использование переменных окружения
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e env-variables-mode
+
+# Использование переменных из файла
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e file-variables-mode
+
+# Использование глобальных переменных
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e global-variables-mode
+
+# Смешанное использование переменных
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e mixed-variables-mode
+
+# Использование предустановленных значений
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e preset-variables-mode
+
+# Демонстрация приоритета переменных (локальные имеют приоритет над глобальными)
+cargo run -- -c ./examples/interactive-config-example.yml run -d interactive-demo -e priority-variables-mode
+```
+
+## Примеры запуска деплоев
+
+### Запуск конкретного деплоя
+
+```bash
+# Запуск всех событий для деплоя backend-api
+cargo run -- -c ./examples/deploy-config.yml run -d backend-api
+```
+
+### Запуск конкретного события деплоя
+
+```bash
+# Запуск только события deploy для деплоя backend-api
+cargo run -- -c ./examples/deploy-config.yml run -d backend-api -e deploy
+```
+
+### Запуск всех деплоев одновременно
+
+```bash
+# Запуск всех деплоев из конфигурации
+cargo run -- -c ./examples/deploy-config.yml run -d all
+```
+
+### Запуск всех деплоев с конкретным событием
+
+```bash
+# Запуск события deploy для всех деплоев
+cargo run -- -c ./examples/deploy-config.yml run -d all -e deploy
+``` 

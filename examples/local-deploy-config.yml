@@ -1,12 +1,12 @@
 deployments:
   - name: get-all-projects
     description: "Получение всех репозиториев"
-    working_dir: "./temp"
+    working_dir: "./temp2"
     events:
       - name: pre-deploy
         description: "Создание директорий и тестовых файлов"
         commands:
-          - command: "cmd.exe /c mkdir temp 2>nul || echo Directory already exists"
+          - command: "cmd.exe /c mkdir temp2 2>nul || echo Directory already exists"
             description: "Создание временной директории"
             ignore_errors: true
 
@@ -14,20 +14,20 @@ deployments:
             description: "Вывод информации"
             ignore_errors: true
 
-          - command: "cmd.exe /c mkdir temp\\frontend temp\\backend 2>nul || echo Directories already exist"
+          - command: "cmd.exe /c mkdir temp2\\frontend temp2\\backend 2>nul || echo Directories already exist"
             description: "Создание директорий для проектов"
             ignore_errors: false
-            rollback_command: "cmd.exe /c rmdir /s /q temp\\frontend temp\\backend 2>nul || echo No directories to remove"
+            rollback_command: "cmd.exe /c rmdir /s /q temp2\\frontend temp2\\backend 2>nul || echo No directories to remove"
 
-          - command: "cmd.exe /c echo console.log(\"Hello from frontend\"); > temp\\frontend\\app.js"
+          - command: "cmd.exe /c echo console.log(\"Hello from frontend\"); > temp2\\frontend\\app.js"
             description: "Создание тестового файла frontend"
             ignore_errors: false
-            rollback_command: "cmd.exe /c del /f /q temp\\frontend\\app.js 2>nul || echo No file to remove"
+            rollback_command: "cmd.exe /c del /f /q temp2\\frontend\\app.js 2>nul || echo No file to remove"
 
-          - command: "cmd.exe /c echo console.log(\"Hello from backend\"); > temp\\backend\\server.js"
+          - command: "cmd.exe /c echo console.log(\"Hello from backend\"); > temp2\\backend\\server.js"
             description: "Создание тестового файла backend"
             ignore_errors: false
-            rollback_command: "cmd.exe /c del /f /q temp\\backend\\server.js 2>nul || echo No file to remove"
+            rollback_command: "cmd.exe /c del /f /q temp2\\backend\\server.js 2>nul || echo No file to remove"
 
         fail_fast: true
 

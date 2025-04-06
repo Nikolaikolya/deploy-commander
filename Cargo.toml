@@ -36,6 +36,10 @@ serial_test = "0.9"
 name = "deploy-cmd"
 path = "src/main.rs"
 
+[[example]]
+name = "variable_demo"
+path = "examples/variable_demo.rs"
+
 [profile.release]
 opt-level = 3
 lto = true

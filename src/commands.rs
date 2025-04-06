@@ -1,43 +1,52 @@
+/*!
+# Модуль Commands
+
+Модуль `commands` содержит функции для работы с командами на уровне системы:
+
+- Создание и запуск системных команд
+- Выполнение shell-команд с заданными параметрами
+- Обработка результатов выполнения команд
+- Валидация команд перед выполнением
+
+## Основные функции
+
+- `create_command` - создает команду для выполнения с использованием Command System
+- `execute_shell_command` - выполняет shell-команду и возвращает результат
+- `validate_command` - проверяет доступность команды без ее выполнения
+- `check_required_commands` - проверяет наличие всех необходимых инструментов
+*/
+
 use anyhow::Result;
 use log::{error, info};
 
 use command_system::command::ShellCommand;
-use command_system::{
-    ChainBuilder, ChainExecutionMode, CommandBuilder, CommandExecution, ConsoleLogger,
-    ExecutionMode, LogLevel,
-};
+use command_system::{CommandBuilder, CommandExecution, ExecutionMode};
 
 /// Создает команду Command System из строки
+///
+/// # Параметры
+///
+/// * `name` - Имя команды для идентификации
+/// * `command_str` - Строка с командой для выполнения
+///
+/// # Возвращаемое значение
+///
+/// Возвращает объект ShellCommand, настроенный для выполнения
 pub fn create_command(name: &str, command_str: &str) -> ShellCommand {
     CommandBuilder::new(name, command_str)
         .execution_mode(ExecutionMode::Sequential)
         .build()
 }
 
-/// Создает цепочку команд для последовательного выполнения
-pub fn create_command_chain(
-    name: &str,
-    commands: Vec<(String, String)>,
-) -> Result<command_system::CommandChain> {
-    // Создаем логгер
-    let logger = Box::new(ConsoleLogger::new(LogLevel::Info));
-
-    // Создаем цепочку команд
-    let mut chain = ChainBuilder::new(name)
-        .execution_mode(ChainExecutionMode::Sequential)
-        .logger(logger)
-        .build();
-
-    // Добавляем команды в цепочку
-    for (cmd_name, cmd_str) in commands {
-        let command = create_command(&cmd_name, &cmd_str);
-        chain.add_command(command);
-    }
-
-    Ok(chain)
-}
-
 /// Выполняет команду в системе
+///
+/// # Параметры
+///
+/// * `command` - Строка с командой для выполнения
+///
+/// # Возвращаемое значение
+///
+/// Возвращает результат выполнения команды в виде строки или ошибку
 pub async fn execute_shell_command(command: &str) -> Result<String> {
     info!("Выполнение команды: {}", command);
 
@@ -62,8 +71,16 @@ pub async fn execute_shell_command(command: &str) -> Result<String> {
 }
 
 /// Валидирует команду без выполнения
+///
+/// # Параметры
+///
+/// * `command` - Строка с командой для проверки
+///
+/// # Возвращаемое значение
+///
+/// Возвращает Ok(()) если команда доступна, или ошибку если нет
 pub async fn validate_command(command: &str) -> Result<()> {
-    let parts: Vec<&str> = command.trim().split_whitespace().collect();
+    let parts: Vec<&str> = command.split_whitespace().collect();
     if parts.is_empty() {
         return Err(anyhow::anyhow!("Пустая команда"));
     }
@@ -82,6 +99,13 @@ pub async fn validate_command(command: &str) -> Result<()> {
 }
 
 /// Проверяет доступность необходимых команд
+///
+/// Проверяет наличие git, docker, ssh и rsync в системе,
+/// выводя предупреждение, если какие-то из них отсутствуют
+///
+/// # Возвращаемое значение
+///
+/// Всегда возвращает Ok(()), но логирует отсутствующие команды
 pub async fn check_required_commands() -> Result<()> {
     let required = ["git", "docker", "ssh", "rsync"];
     let mut missing_commands = Vec::new();
