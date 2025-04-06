@@ -58,7 +58,7 @@ async fn main() {
     info!("Запуск Deploy Commander v{}", env!("CARGO_PKG_VERSION"));
 
     // Проверка наличия необходимых команд
-    if let Err(e) = commands::check_required_commands() {
+    if let Err(e) = commands::check_required_commands().await {
         error!("Ошибка проверки команд: {}", e);
         exit(1);
     }

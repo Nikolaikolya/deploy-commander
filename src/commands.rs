@@ -62,7 +62,7 @@ pub async fn execute_shell_command(command: &str) -> Result<String> {
 }
 
 /// Валидирует команду без выполнения
-pub fn validate_command(command: &str) -> Result<()> {
+pub async fn validate_command(command: &str) -> Result<()> {
     let parts: Vec<&str> = command.trim().split_whitespace().collect();
     if parts.is_empty() {
         return Err(anyhow::anyhow!("Пустая команда"));
@@ -71,18 +71,18 @@ pub fn validate_command(command: &str) -> Result<()> {
     // Проверяем, существует ли исполняемый файл
     let which_cmd = format!("which {}", parts[0]);
 
-    match tokio::runtime::Runtime::new()?.block_on(execute_shell_command(&which_cmd)) {
+    match execute_shell_command(&which_cmd).await {
         Ok(_) => Ok(()),
         Err(_) => Err(anyhow::anyhow!("Команда '{}' не найдена", parts[0])),
     }
 }
 
 /// Проверяет доступность необходимых команд
-pub fn check_required_commands() -> Result<()> {
+pub async fn check_required_commands() -> Result<()> {
     let required = ["git", "docker", "ssh", "rsync"];
 
     for cmd in required {
-        match validate_command(cmd) {
+        match validate_command(cmd).await {
             Ok(_) => info!("Команда '{}' доступна", cmd),
             Err(e) => {
                 error!("Требуемая команда '{}' недоступна: {}", cmd, e);
