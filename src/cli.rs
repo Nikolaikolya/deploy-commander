@@ -32,9 +32,9 @@ pub enum Command {
         #[clap(short, long)]
         deployment: String,
 
-        /// Название события
+        /// Название события (если не указано, будут выполнены все события в порядке их определения)
         #[clap(short, long)]
-        event: String,
+        event: Option<String>,
     },
 
     /// Вывести список доступных деплоев и событий

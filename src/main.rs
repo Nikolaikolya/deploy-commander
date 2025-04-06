@@ -13,6 +13,55 @@ mod storage;
 use cli::Cli;
 use config::Config;
 
+/// Выполняет указанное событие для деплоя
+async fn run_specific_event(config: &Config, deployment: &str, event: &str, history_path: &str) {
+    info!(
+        "Запуск команд для деплоя '{}', событие: '{}'",
+        deployment, event
+    );
+
+    // Запись события начала деплоя
+    if let Err(e) = storage::record_deployment(
+        history_path,
+        deployment,
+        &format!("start-{}", event),
+        true,
+        None,
+    ) {
+        warn!("Ошибка записи события: {}", e);
+    }
+
+    match executor::run_commands(config, deployment, event).await {
+        Ok(_) => {
+            info!("Все команды выполнены успешно");
+            // Запись успешного завершения
+            if let Err(e) = storage::record_deployment(
+                history_path,
+                deployment,
+                &format!("complete-{}", event),
+                true,
+                Some("Деплой успешно завершен".to_string()),
+            ) {
+                warn!("Ошибка записи события: {}", e);
+            }
+        }
+        Err(e) => {
+            error!("Ошибка выполнения команд: {}", e);
+            // Запись ошибки
+            if let Err(log_err) = storage::record_deployment(
+                history_path,
+                deployment,
+                &format!("failed-{}", event),
+                false,
+                Some(e.to_string()),
+            ) {
+                warn!("Ошибка записи события: {}", log_err);
+            }
+            exit(1);
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Парсинг аргументов командной строки
@@ -47,47 +96,85 @@ async fn main() {
     // Выполнение команды
     match cli.command {
         cli::Command::Run { deployment, event } => {
-            info!(
-                "Запуск команд для деплоя '{}', событие: '{}'",
-                deployment, event
-            );
+            // Если событие указано, запускаем только его
+            if let Some(event_name) = event {
+                run_specific_event(&config, &deployment, &event_name, history_path).await;
+            } else {
+                // Если событие не указано, запускаем все события последовательно
+                info!("Запуск всех событий для деплоя '{}'", deployment);
 
-            // Запись события начала деплоя
-            if let Err(e) = storage::record_deployment(
-                history_path,
-                &deployment,
-                &format!("start-{}", event),
-                true,
-                None,
-            ) {
-                warn!("Ошибка записи события: {}", e);
-            }
+                let deployment_config = match config.find_deployment(&deployment) {
+                    Some(d) => d,
+                    None => {
+                        error!("Деплой с именем '{}' не найден", deployment);
+                        exit(1);
+                    }
+                };
 
-            match executor::run_commands(&config, &deployment, &event).await {
-                Ok(_) => {
-                    info!("Все команды выполнены успешно");
-                    // Запись успешного завершения
+                // Запись события начала деплоя
+                if let Err(e) = storage::record_deployment(
+                    history_path,
+                    &deployment,
+                    "start-full-deploy",
+                    true,
+                    None,
+                ) {
+                    warn!("Ошибка записи события: {}", e);
+                }
+
+                let mut success = true;
+
+                // Выполняем все события последовательно
+                for event in &deployment_config.events {
+                    info!(
+                        "Запуск события '{}' для деплоя '{}'",
+                        event.name, deployment
+                    );
+
+                    match executor::run_commands(&config, &deployment, &event.name).await {
+                        Ok(_) => {
+                            info!("Событие '{}' успешно выполнено", event.name);
+                        }
+                        Err(e) => {
+                            error!("Ошибка выполнения события '{}': {}", event.name, e);
+                            // Запись ошибки
+                            if let Err(log_err) = storage::record_deployment(
+                                history_path,
+                                &deployment,
+                                &format!("failed-{}", event.name),
+                                false,
+                                Some(e.to_string()),
+                            ) {
+                                warn!("Ошибка записи события: {}", log_err);
+                            }
+                            success = false;
+                            break;
+                        }
+                    }
+                }
+
+                // Запись результата полного деплоя
+                if success {
+                    info!("Все события для деплоя '{}' успешно выполнены", deployment);
                     if let Err(e) = storage::record_deployment(
                         history_path,
                         &deployment,
-                        &format!("complete-{}", event),
+                        "complete-full-deploy",
                         true,
-                        Some("Деплой успешно завершен".to_string()),
+                        Some("Все события деплоя успешно завершены".to_string()),
                     ) {
                         warn!("Ошибка записи события: {}", e);
                     }
-                }
-                Err(e) => {
-                    error!("Ошибка выполнения команд: {}", e);
-                    // Запись ошибки
-                    if let Err(log_err) = storage::record_deployment(
+                } else {
+                    error!("Деплой '{}' завершился с ошибками", deployment);
+                    if let Err(e) = storage::record_deployment(
                         history_path,
                         &deployment,
-                        &format!("failed-{}", event),
+                        "failed-full-deploy",
                         false,
-                        Some(e.to_string()),
+                        Some("Одно из событий завершилось с ошибкой".to_string()),
                     ) {
-                        warn!("Ошибка записи события: {}", log_err);
+                        warn!("Ошибка записи события: {}", e);
                     }
                     exit(1);
                 }
