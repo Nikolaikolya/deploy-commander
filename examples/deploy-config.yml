@@ -10,6 +10,14 @@ deployments:
             description: "Клонирование frontend"
             ignore_errors: true
 
+          - command: "rm -rf /home/kolyan/me_best_practice || true"
+            description: "Удаление старого репозитория frontend"
+            ignore_errors: true
+            
+          - command: "rm -rf /home/kolyan/advanced_todo_backend || true"
+            description: "Удаление старого репозитория backend"
+            ignore_errors: true
+
           - command: "git clone https://gitlab.com/Nikolaikolya/me_best_practice.git"
             description: "Получение репозитория frontend"
             ignore_errors: false
