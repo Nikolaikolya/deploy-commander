@@ -13,7 +13,7 @@ deployments:
           - command: "rm -rf /home/kolyan/me_best_practice || true"
             description: "Удаление старого репозитория frontend"
             ignore_errors: true
-            
+
           - command: "rm -rf /home/kolyan/advanced_todo_backend || true"
             description: "Удаление старого репозитория backend"
             ignore_errors: true
@@ -98,23 +98,22 @@ deployments:
           - command: "docker build -t at-server ."
             description: "Создание контейнера"
             rollback_command: "docker rmi at-server || true"
-            
-          - command: "docker rm -f at-server-container || true" 
+
+          - command: "docker rm -f at-server-container || true"
             description: "Удаление старого контейнера"
             ignore_errors: true
-            
+
           - command: "docker run -d --name at-server-container -p 4000:4000 --restart always at-server"
             description: "Запуск контейнера"
             rollback_command: "docker rm -f at-server-container || true"
         fail_fast: true
-        
+
       - name: post-deploy
         description: "Действия после деплоя"
         commands:
           - command: "rm -rf /home/kolyan/advanced_todo_backend"
             description: "Удаление исходников"
-            
+
           - command: "echo 'Деплой backend-api завершен'"
             description: "Сообщение о завершении деплоя"
             ignore_errors: true
-
