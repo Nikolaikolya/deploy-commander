@@ -1,0 +1,22 @@
+stages:
+  - release
+
+variables:
+  BIN_NAME: deploy-cmd
+  RELEASE_TAG: "v1.0.0"  # можно подставлять динамически, например из CI_COMMIT_TAG
+
+upload_release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script: []
+  release:
+    name: "Deploy Commander $RELEASE_TAG"
+    tag_name: "$RELEASE_TAG"
+    description: "Релиз собранного бинарника"
+    assets:
+      links:
+        - name: "$BIN_NAME"
+          url: "$CI_PROJECT_URL/-/jobs/$CI_JOB_ID/artifacts/raw/release/$BIN_NAME"
+  artifacts:
+    paths:
+      - release/$BIN_NAME
