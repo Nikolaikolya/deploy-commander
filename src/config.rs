@@ -61,9 +61,42 @@ impl Config {
     pub fn load(path: &str) -> Result<Self> {
         let config_path = Path::new(path);
 
+        // Расширенное логирование для отладки проблем с путями
+        let absolute_path = if let Ok(abs_path) = std::fs::canonicalize(config_path) {
+            abs_path.to_string_lossy().to_string()
+        } else {
+            path.to_string()
+        };
+
+        info!(
+            "Попытка загрузки конфигурации из '{}' (абсолютный путь: '{}')",
+            path, absolute_path
+        );
+
         if !config_path.exists() {
+            // Дополнительное логирование с информацией о текущей директории
+            let current_dir = if let Ok(dir) = std::env::current_dir() {
+                dir.to_string_lossy().to_string()
+            } else {
+                "Не удалось получить текущую директорию".to_string()
+            };
+
+            error!(
+                "Файл конфигурации не найден: '{}'. Текущая директория: '{}'.",
+                path, current_dir
+            );
+
+            // Выводим содержимое директории для отладки
+            if let Ok(entries) = std::fs::read_dir(Path::new(".")) {
+                info!("Содержимое текущей директории:");
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        info!("  {}", entry.path().display());
+                    }
+                }
+            }
+
             // Если файл не существует, создаем пустую конфигурацию
-            info!("Файл конфигурации не найден, создаем новый: {}", path);
             let config = Config {
                 deployments: vec![],
                 variables_file: None,
@@ -72,11 +105,68 @@ impl Config {
             return Ok(config);
         }
 
-        let content = fs::read_to_string(config_path)
-            .with_context(|| format!("Не удалось прочитать файл конфигурации: {}", path))?;
+        // Информация о найденном файле
+        if let Ok(metadata) = std::fs::metadata(config_path) {
+            info!(
+                "Файл конфигурации найден: '{}', размер: {} байт",
+                path,
+                metadata.len()
+            );
 
-        serde_yaml::from_str(&content)
-            .with_context(|| format!("Неверный формат файла конфигурации: {}", path))
+            // Если файл пустой или слишком маленький
+            if metadata.len() < 10 {
+                error!("Файл конфигурации существует, но может быть пустым или повреждён");
+
+                // Выводим первые несколько байт для диагностики
+                if let Ok(content) = fs::read(config_path) {
+                    let preview = String::from_utf8_lossy(&content);
+                    info!("Содержимое файла: '{}'", preview);
+                }
+            }
+        }
+
+        let content = match fs::read_to_string(config_path) {
+            Ok(c) => {
+                info!(
+                    "Файл успешно прочитан, размер содержимого: {} байт",
+                    c.len()
+                );
+                if c.len() < 50 {
+                    info!("Предпросмотр содержимого: '{}'", c);
+                } else {
+                    info!("Предпросмотр содержимого (первые 50 байт): '{}'", &c[..50]);
+                }
+                c
+            }
+            Err(e) => {
+                error!("Ошибка чтения файла: {}", e);
+                return Err(anyhow::anyhow!(
+                    "Не удалось прочитать файл конфигурации: {} ({})",
+                    path,
+                    e
+                ));
+            }
+        };
+
+        let config: Self = match serde_yaml::from_str(&content) {
+            Ok(c) => {
+                info!("YAML успешно десериализован");
+                c
+            }
+            Err(e) => {
+                error!("Ошибка десериализации YAML: {}", e);
+                error!("Содержимое, вызвавшее ошибку: '{}'", content);
+                return Err(anyhow::anyhow!(
+                    "Неверный формат файла конфигурации: {} ({})",
+                    path,
+                    e
+                ));
+            }
+        };
+
+        info!("Конфигурация содержит {} деплоев", config.deployments.len());
+
+        Ok(config)
     }
 
     /// Сохраняет конфигурацию в файл
