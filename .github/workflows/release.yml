@@ -3,32 +3,25 @@ name: Release
 on:
   push:
     tags:
-      - "v*" # Например, v1.0.0
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   release:
-    name: Upload release binary
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Create GitHub Release
-        id: create_release
+      - name: Upload binary
         uses: softprops/action-gh-release@v1
         with:
           name: Release ${{ github.ref_name }}
           tag_name: ${{ github.ref }}
           draft: false
           prerelease: false
-
-      - name: Upload binary
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release/deploy-cmd
-          asset_name: deploy-cmd
-          asset_content_type: application/octet-stream
+          files: |
+            release/deploy-cmd
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
