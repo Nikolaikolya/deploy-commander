@@ -1,0 +1,53 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_IMAGE: deploy-cmd:latest
+
+# Сборка Docker образа
+build_deploy_image:
+  stage: build
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    - docker build -t $DOCKER_IMAGE -f Dockerfile .
+  only:
+    - master
+    - main
+
+# Деплой приложения на целевой сервер
+deploy_application:
+  stage: deploy
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    # Способ 1: Монтируем директорию проекта в /workdir
+    - docker run --rm -v $CI_PROJECT_DIR:/workdir $DOCKER_IMAGE -c /workdir/config/deploy-config.yml run -d bp-app -e deploy
+    
+    # Вариант с использованием абсолютных путей (работает с обновленным скриптом-оболочкой)
+    # - docker run --rm -v $CI_PROJECT_DIR:/workdir $DOCKER_IMAGE -c $CI_PROJECT_DIR/config/deploy-config.yml run -d bp-app -e deploy
+  only:
+    - master
+    - main
+  environment:
+    name: production
+
+# Подготовка к деплою (проверка конфигурации)
+test_deploy_config:
+  stage: deploy
+  image: docker:20.10.16
+  services:
+    - docker:20.10.16-dind
+  script:
+    # Проверка конфигурации
+    - docker run --rm -v $CI_PROJECT_DIR:/workdir $DOCKER_IMAGE -c /workdir/config/deploy-config.yml verify -d bp-app
+    
+    # Используем диагностический скрипт при возникновении проблем
+    - docker run --rm -v $CI_PROJECT_DIR:/workdir --entrypoint docker-diagnose.sh $DOCKER_IMAGE
+  only:
+    - merge_requests
+  environment:
+    name: staging 

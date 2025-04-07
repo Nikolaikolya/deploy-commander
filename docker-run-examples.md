@@ -157,10 +157,56 @@ docker run -v $(pwd):/workdir:z deploy-cmd -c /workdir/deploy-config.yml list
 docker run -v ${PWD}:/workdir deploy-cmd -c /workdir/deploy-config.yml list
 ```
 
-### Известные проблемы с CRLF
+### Проблемы с CRLF
 
 В Windows файлы могут иметь окончания строк CRLF, что иногда приводит к проблемам с YAML-парсером. Убедитесь, что файл использует окончания строк LF:
 ```powershell
 # Преобразование CRLF в LF в PowerShell
 (Get-Content -Raw deploy-config.yml) -replace "`r`n", "`n" | Set-Content -NoNewline deploy-config.yml
+```
+
+### Проблемы с абсолютными путями в CI/CD окружении
+
+В CI/CD системах (GitLab CI, GitHub Actions) при использовании абсолютных путей возникает проблема, так как внутри контейнера эти пути недоступны:
+
+**Проблема:**
+```bash
+# НЕ РАБОТАЕТ - путь /builds/... существует на хосте, но не внутри контейнера
+docker run --rm deploy-cmd -c /builds/username/project/config/deploy-config.yml run -d my-deploy
+```
+
+**Решение 1:** Монтирование с правильным маппингом путей:
+```bash
+docker run --rm -v /builds/username/project:/workdir/project deploy-cmd -c /workdir/project/config/deploy-config.yml run -d my-deploy
+```
+
+**Решение 2:** Для GitLab CI - генерация временной конфигурации в контейнере:
+```yaml
+deploy:
+  script:
+    # Копируем файл конфигурации в контейнер
+    - docker run --rm -v $CI_PROJECT_DIR:/source --entrypoint sh deploy-cmd -c "mkdir -p /workdir/config && cp /source/config/deploy-config.yml /workdir/config/"
+    # Используем скопированный файл
+    - docker run --rm -v $CI_PROJECT_DIR:/source deploy-cmd -c /workdir/config/deploy-config.yml run -d bp-app
+```
+
+**Решение 3:** Для работы с абсолютными путями используйте специальный скрипт-оболочку:
+```bash
+#!/bin/bash
+# Файл: run-deploy.sh
+
+# Получаем абсолютный путь к файлу конфигурации
+CONFIG_PATH="$2"
+CONFIG_DIR=$(dirname "$CONFIG_PATH")
+CONFIG_FILE=$(basename "$CONFIG_PATH")
+
+# Запускаем контейнер с правильным монтированием
+docker run --rm \
+  -v "$CONFIG_DIR:/source" \
+  deploy-cmd -c "/source/$CONFIG_FILE" "${@:3}"
+```
+
+Использование скрипта:
+```bash
+./run-deploy.sh -c /builds/username/project/config/deploy-config.yml run -d bp-app
 ``` 
