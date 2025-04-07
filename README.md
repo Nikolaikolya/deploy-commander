@@ -45,6 +45,11 @@ Deploy Commander использует несколько паттернов пр
 
 ## Установка
 
+Для использования бинарника:
+```bash
+curl -L https://github.com/Nikolaikolya/deploy-commander/releases/download/v1.0.3/deploy-cmd -o /usr/local/bin/deploy-cmd
+```
+
 ```bash
 git clone https://github.com/yourusername/deploy-commander.git
 cd deploy-commander

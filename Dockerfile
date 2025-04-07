@@ -1,34 +1,15 @@
-FROM rust:1.80-slim as builder
+# Используем официальный минимальный образ Ubuntu
+FROM ubuntu:20.04
 
-WORKDIR /usr/src/deploy-commander
-COPY . .
-
+# Обновляем пакеты и устанавливаем curl
 RUN apt-get update && \
-    apt-get install -y pkg-config libssl-dev && \
-    cargo build --release
+  apt-get install -y curl && \
+  # Скачиваем бинарник deploy-cmd и делаем его исполнимым
+  curl -L https://github.com/Nikolaikolya/deploy-commander/releases/download/v1.0.3/deploy-cmd -o /usr/local/bin/deploy-cmd && \
+  chmod +x /usr/local/bin/deploy-cmd
 
-# Финальный контейнер
-FROM ubuntu:minimal
+# Устанавливаем deploy-cmd как основной исполнимый файл
+ENTRYPOINT ["deploy-cmd"]
 
-# Устанавливаем только необходимые зависимости
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      ca-certificates \
-      libssl-dev \
-      git \
-      openssh-client \
-      rsync && \
-    rm -rf /var/lib/apt/lists/*
-
-# Копируем бинарник
-COPY --from=builder /usr/src/deploy-commander/target/release/deploy-cmd /usr/local/bin/deploy-cmd
-
-# Настройка окружения
-RUN mkdir -p /app/config
-
-WORKDIR /app
-
-COPY ./examples/deploy-config.yml /app/config/deploy-config.yml
-
-ENTRYPOINT ["deploy-cmd", "-c", "/app/config/deploy-config.yml"]
+# Устанавливаем аргумент по умолчанию
 CMD ["--help"]
