@@ -1,0 +1,23 @@
+deployments:
+  - name: encoding-test
+    description: "Тестовый деплой для проверки кодировки и корректного отображения кириллицы"
+    working_dir: "./"
+    events:
+      - name: test-encoding
+        description: "Тесты с разными кодировками и командами"
+        commands:
+          - command: "cmd /c chcp 65001 > nul && echo Тест кириллицы в CMD с UTF-8"
+            description: "Тест CMD с UTF-8"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Host 'Кириллица в PowerShell с UTF-8'\""
+            description: "Тест PowerShell с UTF-8"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $text='Многострочный текст на русском'; Write-Host $text; Write-Host 'Вторая строка'; Write-Host 'Третья строка'\""
+            description: "Тест многострочного вывода с UTF-8"
+            ignore_errors: true
+          - command: "cmd /c chcp 65001 > nul && echo Тестирование переменной %USERNAME% из окружения"
+            description: "Тест переменных окружения"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Date -Format 'dd.MM.yyyy HH:mm:ss'\""
+            description: "Тест вывода даты"
+            ignore_errors: true 

@@ -19,6 +19,10 @@ pub struct Cli {
     #[clap(long, default_value = "deploy-commander.log")]
     pub log_file: String,
 
+    /// Режим выполнения деплоев (параллельный или последовательный)
+    #[clap(short, long, help = "Включает параллельное выполнение деплоев")]
+    pub parallel: Option<bool>,
+
     /// Команда для выполнения
     #[clap(subcommand)]
     pub command: Command,
@@ -28,7 +32,7 @@ pub struct Cli {
 pub enum Command {
     /// Запустить команды для указанного деплоя и события
     Run {
-        /// Название деплоя
+        /// Название деплоя или специальное значение "all" для запуска всех деплоев
         #[clap(short, long)]
         deployment: String,
 

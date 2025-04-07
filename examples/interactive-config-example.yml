@@ -1,0 +1,68 @@
+deployments:
+  - name: interactive-demo
+    description: "Демонстрация интерактивных переменных"
+    working_dir: "./examples/temp"
+    variables_file: "./examples/variables.json"
+    events:
+      - name: interactive-mode
+        description: "Режим с интерактивным вводом"
+        commands:
+          - command: "echo 'Привет, {name}! Вы запустили {project} версии {version}'"
+            description: "Приветствие пользователя"
+            interactive: true
+        fail_fast: true
+
+      - name: env-variables-mode
+        description: "Режим с переменными окружения"
+        commands:
+          - command: "echo 'Текущая среда: {$NODE_ENV}, переменная PATH: {$PATH}'"
+            description: "Вывод переменных окружения"
+            interactive: true
+        fail_fast: true
+
+      - name: file-variables-mode
+        description: "Режим с переменными из файла"
+        commands:
+          - command: "echo 'Приложение {#APP_NAME} версии {#VERSION} запущено на хосте {#DB_HOST}:{#DB_PORT}'"
+            description: "Вывод переменных из файла"
+            interactive: true
+            variables_file: "./examples/variables.json"
+        fail_fast: true
+
+      - name: global-variables-mode
+        description: "Режим с глобальными переменными"
+        commands:
+          - command: "echo 'Глобальная среда: {#GLOBAL_ENVIRONMENT}, URL API: {#GLOBAL_API_URL}'"
+            description: "Вывод глобальных переменных"
+            interactive: true
+        fail_fast: true
+
+      - name: mixed-variables-mode
+        description: "Режим со смешанными переменными"
+        commands:
+          - command: "echo 'Проект {project} (версия {#VERSION}) в среде {$NODE_ENV} использует {#GLOBAL_DATABASE_HOST}:{#GLOBAL_DATABASE_PORT}'"
+            description: "Смешанные переменные"
+            interactive: true
+            variables_file: "./examples/variables.json"
+        fail_fast: true
+
+      - name: preset-variables-mode
+        description: "Режим с предустановленными значениями"
+        commands:
+          - command: "echo 'Привет, {name}! Это проект {project} с окружением {environment}'"
+            description: "Переменные с предустановленными значениями"
+            interactive: true
+            inputs:
+              "name": "Пользователь"
+              "project": "DeployCommander"
+              "environment": "Development"
+        fail_fast: true
+
+      - name: priority-variables-mode
+        description: "Режим с приоритетом переменных"
+        commands:
+          - command: "echo 'Локальный API URL: {#API_URL}, глобальный API URL: {#GLOBAL_API_URL}'"
+            description: "Демонстрация приоритета локальных переменных над глобальными"
+            interactive: true
+            variables_file: "./examples/variables.json"
+        fail_fast: true 

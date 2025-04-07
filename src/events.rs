@@ -1,63 +1,88 @@
-use log::info;
+/*!
+# Модуль Events
+
+Модуль `events` предоставляет систему событий для процесса деплоя:
+
+- Определение типов событий, происходящих в процессе деплоя
+- Создание и отправка событий через эмиттер
+- Асинхронная обработка событий через каналы
+
+## Основные компоненты
+
+- `EventType` - перечисление типов событий деплоя
+- `EventEmitter` - компонент для отправки событий и логирования
+*/
+
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
+/// Типы событий, которые могут происходить во время деплоя
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EventType {
+    /// Начало деплоя
     DeploymentStarted {
+        /// Имя деплоя
         deployment: String,
+        /// Имя события
         event: String,
     },
+    /// Успешное завершение деплоя
     DeploymentSucceeded {
+        /// Имя деплоя
         deployment: String,
+        /// Имя события
         event: String,
     },
+    /// Ошибка деплоя
     DeploymentFailed {
+        /// Имя деплоя
         deployment: String,
+        /// Имя события
         event: String,
     },
-    CommandStarted {
-        deployment: String,
-        event: String,
-        command: String,
-        index: usize,
-        total: usize,
-    },
-    CommandSucceeded {
-        deployment: String,
-        event: String,
-        command: String,
-        output: String,
-    },
+    /// Ошибка команды
     CommandFailed {
+        /// Имя деплоя
         deployment: String,
+        /// Имя события
         event: String,
+        /// Команда, вызвавшая ошибку
         command: String,
+        /// Текст ошибки
         error: String,
     },
 }
 
-#[derive(Clone)]
+/// Эмиттер событий для отправки уведомлений о процессе деплоя
 pub struct EventEmitter {
+    /// Канал для отправки событий (опционально)
     sender: Option<mpsc::Sender<EventType>>,
 }
 
 impl EventEmitter {
+    /// Создает новый эмиттер событий
+    ///
+    /// # Возвращаемое значение
+    ///
+    /// Экземпляр `EventEmitter` без настроенного канала
     pub fn new() -> Self {
         // В реальном приложении здесь можно было бы настроить отправку событий
         // в систему мониторинга, очередь сообщений и т.д.
-        // Сейчас просто логируем события
         Self { sender: None }
     }
 
-    pub fn with_channel(sender: mpsc::Sender<EventType>) -> Self {
-        Self {
-            sender: Some(sender),
-        }
-    }
-
+    /// Отправляет событие
+    ///
+    /// # Параметры
+    ///
+    /// * `event` - Событие для отправки и логирования
+    ///
+    /// # Примечания
+    ///
+    /// Метод логирует информацию о событии, а также отправляет его
+    /// в канал, если он был настроен
     pub fn emit(&self, event: EventType) {
-        // Логируем событие
         match &event {
             EventType::DeploymentStarted { deployment, event } => {
                 info!(
@@ -72,32 +97,9 @@ impl EventEmitter {
                 );
             }
             EventType::DeploymentFailed { deployment, event } => {
-                info!(
+                error!(
                     "Событие: Ошибка деплоя '{}', событие '{}'",
                     deployment, event
-                );
-            }
-            EventType::CommandStarted {
-                deployment,
-                event,
-                command,
-                index,
-                total,
-            } => {
-                info!(
-                    "Событие: Начало выполнения команды [{}/{}] '{}' для деплоя '{}', событие '{}'",
-                    index, total, command, deployment, event
-                );
-            }
-            EventType::CommandSucceeded {
-                deployment,
-                event,
-                command,
-                ..
-            } => {
-                info!(
-                    "Событие: Успешное выполнение команды '{}' для деплоя '{}', событие '{}'",
-                    command, deployment, event
                 );
             }
             EventType::CommandFailed {
@@ -106,14 +108,14 @@ impl EventEmitter {
                 command,
                 error,
             } => {
-                info!(
-                    "Событие: Ошибка выполнения команды '{}' для деплоя '{}', событие '{}': {}",
+                error!(
+                    "Событие: Ошибка команды '{}' в деплое '{}', событие '{}': {}",
                     command, deployment, event, error
                 );
             }
         }
 
-        // Отправляем событие в канал, если он настроен
+        // Если есть канал, отправляем событие
         if let Some(sender) = &self.sender {
             let sender = sender.clone();
             let event_clone = event.clone();
@@ -125,46 +127,4 @@ impl EventEmitter {
             });
         }
     }
-}
-
-// Обработчик событий - может быть расширен для подключения
-// внешних систем мониторинга, уведомлений и т.д.
-pub struct EventHandler {
-    receiver: mpsc::Receiver<EventType>,
-}
-
-impl EventHandler {
-    pub fn new(receiver: mpsc::Receiver<EventType>) -> Self {
-        Self { receiver }
-    }
-
-    pub async fn start(mut self) {
-        while let Some(event) = self.receiver.recv().await {
-            // Здесь можно добавить обработку событий, например:
-            // - отправку уведомлений в Telegram
-            // - запись в базу данных
-            // - интеграцию с системами мониторинга
-            // и т.д.
-
-            match event {
-                EventType::DeploymentStarted { .. } => {
-                    // Например, отправить уведомление о начале деплоя
-                }
-                EventType::DeploymentFailed { .. } => {
-                    // Отправить уведомление об ошибке
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-// Создание пары каналов для событий
-pub fn create_event_channels() -> (EventEmitter, EventHandler) {
-    let (sender, receiver) = mpsc::channel(100);
-
-    let emitter = EventEmitter::with_channel(sender);
-    let handler = EventHandler::new(receiver);
-
-    (emitter, handler)
 }

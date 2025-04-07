@@ -1,12 +1,25 @@
 use anyhow::{Context, Result};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+
+use crate::run::deployments;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     pub deployments: Vec<Deployment>,
+    pub variables_file: Option<String>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            deployments: Vec::new(),
+            variables_file: None,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -15,6 +28,8 @@ pub struct Deployment {
     pub description: Option<String>,
     pub working_dir: Option<String>,
     pub environment: Option<Vec<String>>,
+    /// Опциональный путь к файлу с переменными
+    pub variables_file: Option<String>,
     pub events: Vec<Event>,
 }
 
@@ -32,9 +47,17 @@ pub struct Command {
     pub description: Option<String>,
     pub ignore_errors: Option<bool>,
     pub rollback_command: Option<String>,
+    /// Флаг интерактивного режима
+    pub interactive: Option<bool>,
+    /// Предопределенные ответы на запросы в интерактивном режиме
+    /// Ключи - это текст или паттерн запроса, значения - ответы
+    pub inputs: Option<HashMap<String, String>>,
+    /// Опциональный путь к файлу с переменными для этой команды
+    pub variables_file: Option<String>,
 }
 
 impl Config {
+    /// Загружает конфигурацию из файла
     pub fn load(path: &str) -> Result<Self> {
         let config_path = Path::new(path);
 
@@ -43,6 +66,7 @@ impl Config {
             info!("Файл конфигурации не найден, создаем новый: {}", path);
             let config = Config {
                 deployments: vec![],
+                variables_file: None,
             };
             config.save(path)?;
             return Ok(config);
@@ -55,6 +79,7 @@ impl Config {
             .with_context(|| format!("Неверный формат файла конфигурации: {}", path))
     }
 
+    /// Сохраняет конфигурацию в файл
     pub fn save(&self, path: &str) -> Result<()> {
         let yaml =
             serde_yaml::to_string(self).context("Не удалось сериализовать конфигурацию в YAML")?;
@@ -65,16 +90,13 @@ impl Config {
         Ok(())
     }
 
+    /// Находит деплоймент по имени
     pub fn find_deployment(&self, name: &str) -> Option<&Deployment> {
         self.deployments.iter().find(|d| d.name == name)
     }
-
-    pub fn find_event<'a>(&'a self, deployment_name: &str, event_name: &str) -> Option<&'a Event> {
-        self.find_deployment(deployment_name)
-            .and_then(|d| d.events.iter().find(|e| e.name == event_name))
-    }
 }
 
+/// Создает шаблон деплоя с указанным именем
 pub fn create_template_deployment(name: &str, config_path: &str) -> Result<()> {
     let mut config = Config::load(config_path)?;
 
@@ -85,74 +107,7 @@ pub fn create_template_deployment(name: &str, config_path: &str) -> Result<()> {
     }
 
     // Создаем шаблон деплоя
-    let template = Deployment {
-        name: name.to_string(),
-        description: Some(format!("Деплой {}", name)),
-        working_dir: Some("/var/www/app".to_string()),
-        environment: Some(vec![
-            "NODE_ENV=production".to_string(),
-            "PORT=3000".to_string(),
-        ]),
-        events: vec![
-            Event {
-                name: "pre-deploy".to_string(),
-                description: Some("Команды перед деплоем".to_string()),
-                commands: vec![Command {
-                    command: "echo 'Начало деплоя'".to_string(),
-                    description: Some("Вывод сообщения о начале деплоя".to_string()),
-                    ignore_errors: Some(true),
-                    rollback_command: None,
-                }],
-                fail_fast: Some(true),
-            },
-            Event {
-                name: "deploy".to_string(),
-                description: Some("Основные команды деплоя".to_string()),
-                commands: vec![
-                    Command {
-                        command: "git pull origin main".to_string(),
-                        description: Some(
-                            "Получение последних изменений из репозитория".to_string(),
-                        ),
-                        ignore_errors: None,
-                        rollback_command: None,
-                    },
-                    Command {
-                        command: "npm ci".to_string(),
-                        description: Some("Установка зависимостей".to_string()),
-                        ignore_errors: None,
-                        rollback_command: None,
-                    },
-                    Command {
-                        command: "npm run build".to_string(),
-                        description: Some("Сборка проекта".to_string()),
-                        ignore_errors: None,
-                        rollback_command: None,
-                    },
-                ],
-                fail_fast: Some(true),
-            },
-            Event {
-                name: "post-deploy".to_string(),
-                description: Some("Команды после деплоя".to_string()),
-                commands: vec![
-                    Command {
-                        command: "pm2 restart app".to_string(),
-                        description: Some("Перезапуск приложения".to_string()),
-                        ignore_errors: None,
-                        rollback_command: None,
-                    },
-                    Command {
-                        command: "echo 'Деплой завершен'".to_string(),
-                        description: Some("Вывод сообщения о завершении деплоя".to_string()),
-                        ignore_errors: Some(true),
-                        rollback_command: None,
-                    },
-                ],
-                fail_fast: Some(false),
-            },
-        ],
-    };
+    let template = deployments::create_new_deployment(name);
 
     // Добавляем шаблон в конфигурацию
     config.deployments.push(template);
@@ -163,6 +118,7 @@ pub fn create_template_deployment(name: &str, config_path: &str) -> Result<()> {
     Ok(())
 }
 
+/// Проверяет конфигурацию деплоя на корректность
 pub fn verify_deployment(config: &Config, deployment_name: &str) -> Result<bool> {
     let deployment = match config.find_deployment(deployment_name) {
         Some(d) => d,
@@ -172,22 +128,6 @@ pub fn verify_deployment(config: &Config, deployment_name: &str) -> Result<bool>
         }
     };
 
-    // Проверка на пустые события
-    if deployment.events.is_empty() {
-        error!("Деплой '{}' не содержит событий", deployment_name);
-        return Ok(false);
-    }
-
-    // Проверка каждого события на наличие команд
-    for event in &deployment.events {
-        if event.commands.is_empty() {
-            error!(
-                "Событие '{}' в деплое '{}' не содержит команд",
-                event.name, deployment_name
-            );
-            return Ok(false);
-        }
-    }
-
-    Ok(true)
+    // Проверяем события деплоя
+    deployments::validate_deployment_events(deployment)
 }
