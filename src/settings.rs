@@ -20,6 +20,7 @@ pub const DEFAULT_SETTINGS_PATH: &str = "settings.json";
 pub const DEFAULT_LOG_FILE: &str = "deploy-commander.log";
 pub const DEFAULT_HISTORY_FILE: &str = "deploy-history.json";
 pub const DEFAULT_VARIABLES_FILE: &str = "variables.json";
+pub const DEFAULT_LOGS_DIR: &str = "logs";
 
 /// Структура глобальных настроек приложения
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,6 +33,9 @@ pub struct Settings {
 
     /// Путь к файлу глобальных переменных
     pub variables_file: String,
+
+    /// Путь к директории логов команд
+    pub logs_dir: String,
 }
 
 impl Default for Settings {
@@ -40,6 +44,7 @@ impl Default for Settings {
             log_file: DEFAULT_LOG_FILE.to_string(),
             history_file: DEFAULT_HISTORY_FILE.to_string(),
             variables_file: DEFAULT_VARIABLES_FILE.to_string(),
+            logs_dir: DEFAULT_LOGS_DIR.to_string(),
         }
     }
 }
@@ -106,7 +111,7 @@ impl Settings {
     }
 }
 
-/// Обновляет настройки, если они старой версии (без поля variables_file)
+/// Обновляет настройки, если они старой версии (без поля variables_file или logs_dir)
 ///
 /// # Параметры
 ///
@@ -119,11 +124,25 @@ impl Settings {
 fn upgrade_settings_if_needed(path: &str, mut settings: Settings) -> Result<Settings> {
     let content = fs::read_to_string(path)?;
     let json: serde_json::Value = serde_json::from_str(&content)?;
+    let json_obj = json.as_object().unwrap();
+    let mut updated = false;
 
     // Если поле "variables_file" отсутствует, добавляем его
-    if !json.as_object().unwrap().contains_key("variables_file") {
+    if !json_obj.contains_key("variables_file") {
         info!("Обновление настроек: добавление поля variables_file");
         settings.variables_file = DEFAULT_VARIABLES_FILE.to_string();
+        updated = true;
+    }
+
+    // Если поле "logs_dir" отсутствует, добавляем его
+    if !json_obj.contains_key("logs_dir") {
+        info!("Обновление настроек: добавление поля logs_dir");
+        settings.logs_dir = DEFAULT_LOGS_DIR.to_string();
+        updated = true;
+    }
+
+    // Сохраняем настройки, если они были обновлены
+    if updated {
         settings.save(path)?;
         info!("Настройки успешно обновлены");
     }

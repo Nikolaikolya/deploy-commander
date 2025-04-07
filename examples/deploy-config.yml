@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 deployments:
   - name: get-all-projects
     description: "Получение всех репозиториев"
@@ -117,3 +118,125 @@ deployments:
           - command: "echo 'Деплой backend-api завершен'"
             description: "Сообщение о завершении деплоя"
             ignore_errors: true
+=======
+deployments:
+  - name: get-all-projects
+    description: "Получение всех репозиториев"
+    working_dir: "/home/kolyan"
+    events:
+      - name: pre-deploy
+        description: "Клонирование проектов"
+        commands:
+          - command: "echo 'Клонирование frontend'"
+            description: "Клонирование frontend"
+            ignore_errors: true
+
+          - command: "rm -rf /home/kolyan/me_best_practice || true"
+            description: "Удаление старого репозитория frontend"
+            ignore_errors: true
+            
+          - command: "rm -rf /home/kolyan/advanced_todo_backend || true"
+            description: "Удаление старого репозитория backend"
+            ignore_errors: true
+
+          - command: "git clone https://gitlab.com/Nikolaikolya/me_best_practice.git"
+            description: "Получение репозитория frontend"
+            ignore_errors: false
+            rollback_command: "rm -rf me_best_practice"
+
+          - command: "echo 'Клонирование backend'"
+            description: "Клонирование backend"
+            ignore_errors: true
+
+          - command: "git clone https://gitlab.com/Nikolaikolya/advanced_todo_backend.git"
+            description: "Получение репозитория backend"
+            ignore_errors: false
+            rollback_command: "rm -rf advanced_todo_backend"
+
+        fail_fast: true
+
+  - name: frontend-app
+    description: "Деплой фронтенд приложения"
+    working_dir: "/home/kolyan/me_best_practice"
+    environment:
+      - "NODE_ENV=production"
+      - "PORT=3000"
+    events:
+      - name: pre-deploy
+        description: "Подготовка к деплою"
+        commands:
+          - command: "echo 'Начало деплоя frontend-app'"
+            description: "Сообщение о начале деплоя"
+            ignore_errors: true
+
+          - command: "git pull origin main"
+            description: "Получение изменений из репозитория"
+            rollback_command: "git reset --hard HEAD~1"
+        fail_fast: true
+
+      - name: deploy
+        description: "Основной процесс деплоя"
+        commands:
+          - command: "docker build -t bp-app ."
+            description: "Создание контейнера"
+            rollback_command: "docker rmi bp-app || true"
+
+          - command: "docker rm -f bp-container || true"
+            description: "Удаление старого контейнера"
+            ignore_errors: true
+
+          - command: "docker run -d --name bp-container -p 3000:3000 --restart always bp-app"
+            description: "Запуск контейнера"
+            rollback_command: "docker rm -f bp-container || true"
+        fail_fast: true
+
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "rm -rf /home/kolyan/me_best_practice"
+            description: "Удаление исходников"
+            ignore_errors: false
+
+          - command: "echo 'Деплой frontend-app завершен'"
+            description: "Сообщение о завершении деплоя"
+            ignore_errors: true
+
+          - command: "curl -X POST https://api.telegram.org/bot<TOKEN>/sendMessage -d chat_id=<ID> -d text='Frontend успешно задеплоен'"
+            description: "Уведомление об поднятии контейнера"
+            ignore_errors: true
+        fail_fast: false
+
+  - name: backend-api
+    description: "Деплой бэкенд API"
+    working_dir: "/home/kolyan/advanced_todo_backend"
+    environment:
+      - "NODE_ENV=production"
+      - "DB_HOST=localhost"
+    events:
+      - name: deploy
+        description: "Основной процесс деплоя backend"
+        commands:
+          - command: "docker build -t at-server ."
+            description: "Создание контейнера"
+            rollback_command: "docker rmi at-server || true"
+            
+          - command: "docker rm -f at-server-container || true" 
+            description: "Удаление старого контейнера"
+            ignore_errors: true
+            
+          - command: "docker run -d --name at-server-container -p 4000:4000 --restart always at-server"
+            description: "Запуск контейнера"
+            rollback_command: "docker rm -f at-server-container || true"
+        fail_fast: true
+        
+      - name: post-deploy
+        description: "Действия после деплоя"
+        commands:
+          - command: "rm -rf /home/kolyan/advanced_todo_backend"
+            description: "Удаление исходников"
+            
+          - command: "echo 'Деплой backend-api завершен'"
+            description: "Сообщение о завершении деплоя"
+            ignore_errors: true
+
+>>>>>>> 1e547e4a4508af48a269bca87553b720d8fb5b3b

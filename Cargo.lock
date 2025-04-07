@@ -405,6 +405,7 @@ dependencies = [
  "log4rs",
  "notify",
  "predicates 2.1.5",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

@@ -10,7 +10,7 @@
 */
 
 use command_system::{CommandBuilder, CommandExecution, ExecutionMode};
-use log::info;
+use log::{error, info};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
@@ -61,46 +61,25 @@ pub fn create_command(
         builder = builder.rollback(rollback);
     }
 
-    // Загружаем переменные из файла, если указан
+    // Загружаем переменные из файла, если указан - используем метод variables_file напрямую
     if let Some(file_path) = variables_file {
         if Path::new(file_path).exists() {
-            // Чтение переменных из JSON-файла
-            match load_variables_from_file(file_path, global_variables_file) {
-                Ok(vars) => {
-                    info!(
-                        "Загружено {} переменных для команды: {}",
-                        vars.len(),
-                        command
-                    );
-                    for (key, value) in vars {
-                        builder = builder.env_var(&key, &value);
-                    }
-                }
-                Err(e) => {
-                    info!("Ошибка загрузки переменных для команды: {}", e);
-                }
-            }
+            info!("Использование файла переменных: {}", file_path);
+            builder = builder.variables_file(file_path);
         } else {
             info!("Файл переменных не найден: {}", file_path);
         }
-    } else if let Some(global_path) = global_variables_file {
-        // Если локальный файл не указан, но указан глобальный
+    }
+
+    // Загружаем переменные из глобального файла, если локальный не указан
+    if variables_file.is_none() && global_variables_file.is_some() {
+        let global_path = global_variables_file.unwrap();
         if Path::new(global_path).exists() {
-            match load_variables_from_single_file(global_path) {
-                Ok(vars) => {
-                    info!(
-                        "Загружено {} глобальных переменных для команды: {}",
-                        vars.len(),
-                        command
-                    );
-                    for (key, value) in vars {
-                        builder = builder.env_var(&key, &value);
-                    }
-                }
-                Err(e) => {
-                    info!("Ошибка загрузки глобальных переменных: {}", e);
-                }
-            }
+            info!(
+                "Использование глобального файла переменных: {}",
+                global_path
+            );
+            builder = builder.variables_file(global_path);
         } else {
             info!("Глобальный файл переменных не найден: {}", global_path);
         }
@@ -132,6 +111,7 @@ pub fn create_command(
 /// # Возвращаемое значение
 ///
 /// Хэш-карта с переменными или ошибка
+#[allow(dead_code)]
 fn load_variables_from_file(
     file_path: &str,
     global_variables_path: Option<&str>,
@@ -196,6 +176,7 @@ fn load_variables_from_file(
 /// # Возвращаемое значение
 ///
 /// Хэш-карта с переменными или ошибка
+#[allow(dead_code)]
 fn load_variables_from_single_file(file_path: &str) -> anyhow::Result<HashMap<String, String>> {
     // Читаем содержимое файла
     let content = fs::read_to_string(file_path).map_err(|e| {
@@ -279,18 +260,32 @@ pub async fn execute_simple_command(command: &str) -> anyhow::Result<String> {
 
     match command.execute().await {
         Ok(result) => {
+            // Логирование результата выполнения в формате INFO
             if result.success {
+                info!(
+                    "Команда '{}' успешно выполнена: {}",
+                    cmd_name,
+                    result.output.trim()
+                );
                 Ok(result.output)
             } else {
+                let error_msg = result
+                    .error
+                    .unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+                error!(
+                    "Команда '{}' завершилась с ошибкой: {}",
+                    cmd_name, error_msg
+                );
                 Err(anyhow::anyhow!(
                     "Команда завершилась с ошибкой: {}",
-                    result
-                        .error
-                        .unwrap_or_else(|| "<неизвестная ошибка>".to_string())
+                    error_msg
                 ))
             }
         }
-        Err(e) => Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e)),
+        Err(e) => {
+            error!("Ошибка выполнения команды '{}': {}", cmd_name, e);
+            Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e))
+        }
     }
 }
 
@@ -325,22 +320,8 @@ pub async fn execute_command_with_variables(
     // Загружаем переменные из файла, если указан
     if let Some(file_path) = variables_file {
         if Path::new(file_path).exists() {
-            // Загрузка переменных из JSON-файла
-            match load_variables_from_file(file_path, None) {
-                Ok(vars) => {
-                    info!(
-                        "Загружено {} переменных из файла: {}",
-                        vars.len(),
-                        file_path
-                    );
-                    for (key, value) in vars {
-                        builder = builder.env_var(&key, &value);
-                    }
-                }
-                Err(e) => {
-                    info!("Ошибка загрузки переменных из файла {}: {}", file_path, e);
-                }
-            }
+            builder = builder.variables_file(file_path);
+            info!("Загружены переменные из файла: {}", file_path);
         } else {
             info!("Файл переменных не найден: {}", file_path);
         }
@@ -351,17 +332,31 @@ pub async fn execute_command_with_variables(
 
     match command.execute().await {
         Ok(result) => {
+            // Логирование результата выполнения в формате INFO
             if result.success {
+                info!(
+                    "Команда '{}' успешно выполнена: {}",
+                    cmd_name,
+                    result.output.trim()
+                );
                 Ok(result.output)
             } else {
+                let error_msg = result
+                    .error
+                    .unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+                error!(
+                    "Команда '{}' завершилась с ошибкой: {}",
+                    cmd_name, error_msg
+                );
                 Err(anyhow::anyhow!(
                     "Команда завершилась с ошибкой: {}",
-                    result
-                        .error
-                        .unwrap_or_else(|| "<неизвестная ошибка>".to_string())
+                    error_msg
                 ))
             }
         }
-        Err(e) => Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e)),
+        Err(e) => {
+            error!("Ошибка выполнения команды '{}': {}", cmd_name, e);
+            Err(anyhow::anyhow!("Ошибка выполнения команды: {}", e))
+        }
     }
 }

@@ -9,3 +9,7 @@ deploy-commander.log
 deploy-history.json
 variables.json
 settings.json
+logs/*
+deploy-commander.log
+deploy-history.json
+

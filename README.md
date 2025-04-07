@@ -98,9 +98,15 @@ cargo build --release
 {
   "log_file": "deploy-commander.log",
   "history_file": "deploy-history.json",
-  "variables_file": "variables.json"
+  "variables_file": "variables.json",
+  "logs_dir": "logs"
 }
 ```
+
+- `log_file` - путь к основному файлу логов приложения
+- `history_file` - путь к файлу истории деплоев
+- `variables_file` - путь к глобальному файлу переменных
+- `logs_dir` - директория для хранения логов выполнения команд
 
 ### Файл конфигурации деплоя
 

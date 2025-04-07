@@ -1,0 +1,50 @@
+deployments:
+  - name: logging-demo
+    description: "Демонстрация возможностей логирования Deploy Commander"
+    working_dir: "./"
+    events:
+      - name: stdout-demo
+        description: "Демонстрация логирования стандартного вывода"
+        commands:
+          - command: "echo 'Простой вывод в stdout'"
+            description: "Простой одиночный вывод"
+            ignore_errors: true
+          - command: "echo 'Первая строка\nВторая строка\nТретья строка'"
+            description: "Многострочный вывод"
+            ignore_errors: true
+          - command: "cmd /c echo Вывод в CMD & echo Еще строка & echo Последняя строка"
+            description: "Многострочный вывод в CMD"
+            ignore_errors: true
+            
+      - name: stderr-demo
+        description: "Демонстрация логирования потока ошибок"
+        commands:
+          - command: "cmd /c echo Стандартный вывод & echo Сообщение об ошибке 1>&2"
+            description: "Одновременный вывод в stdout и stderr"
+            ignore_errors: true
+          - command: "cmd /c echo Сообщение перед ошибкой & echo Сообщение об ошибке 1>&2 & exit /b 1"
+            description: "Ошибка с выводом в stderr и stdout"
+            ignore_errors: true
+            
+      - name: file-redirect-demo
+        description: "Демонстрация перенаправления вывода в файл"
+        commands:
+          - command: "cmd /c (echo Стандартный вывод & echo Сообщение об ошибке 1>&2) > combined-output.txt 2>&1"
+            description: "Перенаправление обоих потоков в файл"
+            ignore_errors: true
+          - command: "cmd /c type combined-output.txt"
+            description: "Просмотр объединенного вывода"
+            ignore_errors: true
+          - command: "cmd /c del combined-output.txt"
+            description: "Удаление временного файла"
+            ignore_errors: true
+            
+      - name: logs-dir-demo
+        description: "Демонстрация настройки директории логов"
+        commands:
+          - command: "echo 'Проверьте директорию логов, указанную в settings.json'"
+            description: "Информация о директории логов"
+            ignore_errors: true
+          - command: "echo 'Каждая команда создает отдельный лог-файл с меткой времени'"
+            description: "Информация о формате лог-файлов"
+            ignore_errors: true 
