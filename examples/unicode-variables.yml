@@ -1,0 +1,18 @@
+deployments:
+  - name: unicode-variables
+    description: "Тест с переменными, содержащими кириллицу"
+    working_dir: "./"
+    variables_file: "examples/unicode-variables.json"
+    events:
+      - name: test-vars
+        description: "Тест с переменными и кириллицей"
+        commands:
+          - command: "cmd /c chcp 65001 > nul && echo Переменная из файла: {#русская_переменная}"
+            description: "Тест переменной с кириллицей из файла"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Host 'Значение переменной: {#имя}'\""
+            description: "Тест переменной из файла JSON"
+            ignore_errors: true
+          - command: "cmd /c chcp 65001 > nul && echo Тест env переменной: {$TEST_NAME}"
+            description: "Тест переменной окружения"
+            ignore_errors: true 

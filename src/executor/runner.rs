@@ -16,8 +16,11 @@ use crate::executor::chain_builder;
 use crate::settings;
 use crate::storage;
 use anyhow::{Context, Result};
+use chrono;
+use command_system::CommandResult;
 use log::{error, info, trace, warn};
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
 
@@ -169,6 +172,17 @@ async fn execute_chain_and_handle_result(
     // Проверяем результат выполнения
     match result {
         Ok(chain_result) => {
+            // Логируем результаты выполнения каждой команды в цепочке
+            for cmd_result in &chain_result.results {
+                // Сохраняем детальный вывод в файл лога и выводим в консоль
+                save_command_output_to_log(
+                    deployment_name,
+                    event_name,
+                    &cmd_result.command_name,
+                    cmd_result,
+                );
+            }
+
             // Записываем результат в историю
             if let Err(e) = storage::record_chain_result(
                 history_path,
@@ -327,4 +341,139 @@ pub async fn run_commands(
         emitter,
     )
     .await
+}
+
+/// Сохраняет детальный вывод команды в файл лога и выводит результат в консоль
+///
+/// # Параметры
+///
+/// * `deployment_name` - Имя деплоя
+/// * `event_name` - Имя события
+/// * `command_name` - Имя команды
+/// * `result` - Результат выполнения команды
+fn save_command_output_to_log(
+    deployment_name: &str,
+    event_name: &str,
+    command_name: &str,
+    result: &CommandResult,
+) {
+    // Выводим результат выполнения команды в лог
+    if result.success {
+        let output = result.output.trim();
+
+        // Для больших выводов делаем вывод в несколько строк
+        if output.len() > 80 || output.contains('\n') {
+            info!("Результат выполнения команды '{}':", command_name);
+            for line in output.lines() {
+                if !line.is_empty() {
+                    info!("│ {}", line);
+                }
+            }
+            if output.lines().count() == 0 {
+                info!("│ <пустой вывод>");
+            }
+            info!("└─ Конец вывода");
+        } else {
+            info!(
+                "Результат выполнения команды '{}': {}",
+                command_name, output
+            );
+        }
+    } else {
+        let error_msg = result
+            .error
+            .clone()
+            .unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+
+        error!("Ошибка выполнения команды '{}':", command_name);
+        error!("├─ Сообщение ошибки: {}", error_msg);
+
+        // Выводим вывод команды, если он есть
+        let output = result.output.trim();
+        if !output.is_empty() {
+            error!("├─ Стандартный вывод команды:");
+            for line in output.lines() {
+                if !line.is_empty() {
+                    error!("│ {}", line);
+                }
+            }
+        } else {
+            error!("├─ Стандартный вывод команды: <пустой>");
+        }
+        error!("└─ Конец вывода");
+    }
+
+    // Получаем директорию логов из настроек или используем значение по умолчанию
+    let logs_dir = match settings::get_settings(settings::DEFAULT_SETTINGS_PATH) {
+        Ok(settings) => settings.logs_dir,
+        Err(e) => {
+            warn!("Ошибка загрузки настроек для директории логов: {}", e);
+            settings::DEFAULT_LOGS_DIR.to_string()
+        }
+    };
+
+    // Создаем директорию логов, если ее нет
+    if !std::path::Path::new(&logs_dir).exists() {
+        if let Err(e) = std::fs::create_dir_all(&logs_dir) {
+            warn!("Не удалось создать директорию логов {}: {}", logs_dir, e);
+            return;
+        }
+    }
+
+    // Создаем имя файла лога только с датой (один файл на день)
+    let current_date = chrono::Local::now().format("%Y%m%d");
+    let timestamp = chrono::Local::now().format("%H:%M:%S");
+    let filename = format!("{}/{}_commands.log", logs_dir, current_date);
+
+    // Формируем содержимое лога с отметкой времени и информацией о команде
+    let log_content = if result.success {
+        format!(
+            "\n[{}] Деплой: '{}', Событие: '{}', Команда: '{}'\nСтатус: Успех\nВывод:\n{}\n{}\n",
+            timestamp, deployment_name, event_name, command_name, 
+            result.output.trim(),
+            "-".repeat(80)
+        )
+    } else {
+        let error_msg = result
+            .error
+            .clone()
+            .unwrap_or_else(|| "<неизвестная ошибка>".to_string());
+        format!(
+            "\n[{}] Деплой: '{}', Событие: '{}', Команда: '{}'\nСтатус: Ошибка\nСообщение ошибки:\n{}\nСтандартный вывод:\n{}\n{}\n",
+            timestamp, deployment_name, event_name, command_name, 
+            error_msg, result.output.trim(),
+            "-".repeat(80)
+        )
+    };
+
+    // Записываем или дописываем лог в файл
+    let file_exists = std::path::Path::new(&filename).exists();
+    let file_operation_result;
+    
+    // Если файл существует, дописываем в него
+    if file_exists {
+        file_operation_result = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&filename)
+            .and_then(|mut file| file.write_all(log_content.as_bytes()));
+    } else {
+        // Если файла нет, создаем новый
+        file_operation_result = std::fs::write(&filename, log_content);
+    }
+
+    if let Err(e) = file_operation_result {
+        warn!("Не удалось записать лог в файл {}: {}", filename, e);
+    } else {
+        if file_exists {
+            info!(
+                "Вывод команды '{}' добавлен в лог: {}",
+                command_name, filename
+            );
+        } else {
+            info!(
+                "Создан новый лог-файл для команд: {}",
+                filename
+            );
+        }
+    }
 }

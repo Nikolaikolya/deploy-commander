@@ -1,0 +1,23 @@
+deployments:
+  - name: log-test
+    description: "Тестовый деплой для проверки логирования команд"
+    working_dir: "./"
+    events:
+      - name: multi-command
+        description: "Тест логирования с несколькими командами"
+        commands:
+          - command: "chcp 65001 > nul && powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Host 'Привет мир 1'\""
+            description: "Тест команды 1 с использованием Write-Host и кодировкой UTF-8"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Get-Date | Out-String\""
+            description: "Тест команды 2 с выводом даты и кодировкой UTF-8"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Host 'Тестовое сообщение с русскими символами'\""
+            description: "Тест команды 3 с русскими символами и кодировкой UTF-8"
+            ignore_errors: true
+          - command: "cmd /c chcp 65001 > nul && echo Это тест из CMD с русскими буквами"
+            description: "Тест команды 4 c CMD и кодировкой UTF-8"
+            ignore_errors: true
+          - command: "powershell -Command \"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Host 'Строка 1'; Write-Host 'Строка 2'; Write-Host 'Строка 3'\""
+            description: "Тест команды 5 с многострочным выводом и кодировкой UTF-8"
+            ignore_errors: true 

@@ -25,6 +25,7 @@ ctrlc = "3.2"
 notify = "5.1"
 home = "0.5"
 command_system = { git = "https://github.com/Nikolaikolya/command_system.git" }
+regex = "1.11.1"
 
 [dev-dependencies]
 tempfile = "3.3"
