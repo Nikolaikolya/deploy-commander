@@ -1,31 +1,32 @@
-name: Release Deploy Commander
+name: Release
 
 on:
   push:
     tags:
-      - "v*"
+      - "v*" # Например, v1.0.0
 
 jobs:
   release:
+    name: Upload release binary
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up release version
-        id: vars
-        run: echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Upload release binary
+      - name: Create GitHub Release
+        id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.RELEASE_VERSION }}
-          name: Deploy Commander ${{ env.RELEASE_VERSION }}
-          body: |
-            Автоматическая публикация бинарника deploy-cmd.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: Release ${{ github.ref_name }}
+          tag_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload binary
+        uses: actions/upload-release-asset@v1
         with:
-          files: |
-            release/deploy-cmd
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./release/deploy-cmd
+          asset_name: deploy-cmd
+          asset_content_type: application/octet-stream
