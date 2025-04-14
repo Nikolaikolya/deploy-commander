@@ -65,6 +65,29 @@ cd deploy-commander
 cargo build --release
 ```
 
+Для использования в Docker:
+```bash
+git clone https://github.com/Nikolaikolya/deploy-commander.git
+
+cd deploy-commander
+```
+
+Добавьте файл `settings.json` в корень `deploy-commander` со следующими параметрами(замените пути на свои):
+```json
+{
+  "log_file": "/path/to/deploy-commander.log",
+  "history_file": "/path/to/deploy-history.json",
+  "variables_file": "/path/to/variables.json",
+  "logs_dir": "/path/to"
+}
+```
+
+```bash
+docker build -t deploy-cmd .
+```
+
+[Примеры использования](./docker-run-examples.md)
+
 ## Использование
 
 ```bash
