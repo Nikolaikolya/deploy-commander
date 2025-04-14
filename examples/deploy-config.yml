@@ -1,7 +1,7 @@
 deployments:
   - name: get-all-projects
     description: "Получение всех репозиториев"
-    working_dir: "/home/kolyan"
+    working_dir: "./"
     events:
       - name: pre-deploy
         description: "Клонирование проектов"

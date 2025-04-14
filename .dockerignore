@@ -1,0 +1,12 @@
+target
+.cursor
+.github
+examples
+release
+.gitignore
+.gitlab-ci.yml
+docker-run-examples.md
+Dockerfile
+gitlab-ci-example.yml
+README.md
+variables.json
