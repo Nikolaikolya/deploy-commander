@@ -60,7 +60,7 @@ curl -L https://github.com/Nikolaikolya/deploy-commander/releases/download/v1.0.
 ```
 
 ```bash
-git clone https://github.com/yourusername/deploy-commander.git
+git clone https://github.com/Nikolaikolya/deploy-commander.git
 cd deploy-commander
 cargo build --release
 ```
